@@ -4,7 +4,7 @@
 #include <assert.h>
 
 int compile(int argc, char *argv[]) {
-    assert(argc >= 2 && "Usage: <input_file> -o <output_file>");
+    assert(argc >= 2 && "Usage: ./cc <input_file> -o <output_file>");
 
     FILE *inputFile = fopen(argv[1], "r");
     FILE *outputFile = fopen("./temp-out.c", "w");

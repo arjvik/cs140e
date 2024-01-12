@@ -5,10 +5,7 @@ die() {
     exit 1
 }
 
-
-
-setopt extended_glob
-rm *~*.*
+for f in *.c; do rm ${f%%.c}; done
 
 make quine
 diff quine.c =(./quine) || die "Quine does not match"
