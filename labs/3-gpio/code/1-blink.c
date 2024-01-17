@@ -5,12 +5,14 @@
 #include "rpi.h"
 
 void notmain(void) {
-    int led = 20;
-    gpio_set_output(led);
-    for(int i = 0; i < 10; i++) {
-        gpio_set_on(led);
+    for (int j = 0; j < 20; j++)
+        gpio_set_output(j);
+    while(1) {
+        for (int j = 0; j < 20; j++)
+            gpio_set_on(j);
         delay_cycles(1000000);
-        gpio_set_off(led);
+        for (int j = 0; j < 20; j++)
+            gpio_set_off(j);
         delay_cycles(1000000);
     }
 }

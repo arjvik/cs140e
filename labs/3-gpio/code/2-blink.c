@@ -3,7 +3,7 @@
 #include "rpi.h"
 
 void notmain(void) {
-    enum { led1 = 20, led2 = 21 };
+    enum { led1 = 20, led2 = 6 };
 
     gpio_set_output(led1);
     gpio_set_output(led2);

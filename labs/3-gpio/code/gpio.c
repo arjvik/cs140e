@@ -28,25 +28,24 @@ enum {
 void gpio_set_output(unsigned pin) {
     if(pin >= 32)
         return;
-
-  // implement this
-  // use <gpio_fsel0>
+    unsigned value = get32((unsigned *) GPIO_BASE + (pin / 10));
+    value &= ~(0x7 << ((pin % 10) * 3));
+    value |= 0x1 << ((pin % 10) * 3);
+    put32(((unsigned *) GPIO_BASE + (pin / 10)), value);
 }
 
 // set GPIO <pin> on.
 void gpio_set_on(unsigned pin) {
     if(pin >= 32)
         return;
-  // implement this
-  // use <gpio_set0>
+    put32((unsigned *) gpio_set0 + (pin / 32), 1 << (pin % 32));
 }
 
 // set GPIO <pin> off
 void gpio_set_off(unsigned pin) {
     if(pin >= 32)
         return;
-  // implement this
-  // use <gpio_clr0>
+   put32((unsigned *) gpio_clr0 + (pin / 32), 1 << (pin % 32));
 }
 
 // set <pin> to <v> (v \in {0,1})
@@ -63,13 +62,16 @@ void gpio_write(unsigned pin, unsigned v) {
 
 // set <pin> to input.
 void gpio_set_input(unsigned pin) {
-  // implement.
+    if(pin >= 32)
+        return;
+    unsigned value = get32((unsigned *) GPIO_BASE + (pin / 10));
+    value &= ~(0x7 << ((pin % 10) * 3));
+    put32((unsigned *) GPIO_BASE + (pin / 10), value);
 }
 
 // return the value of <pin>
 int gpio_read(unsigned pin) {
-  unsigned v = 0;
-
-  // implement.
-  return v;
+    if(pin >= 32)
+        return -1;
+    return (get32((unsigned *) gpio_lev0 + (pin / 32)) & (1 << (pin % 32))) >> (pin % 32);
 }
