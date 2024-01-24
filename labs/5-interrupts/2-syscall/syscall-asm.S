@@ -25,4 +25,8 @@ MK_FN(syscall_illegal)
 @
 @ does not return
 MK_FN(run_user_code_asm)
-    asm_not_implemented()
+    msr cpsr, #(0b10000 | (1<<7))
+    mov sp, r1
+    blx r0
+    @ should never get here.
+    bl clean_reboot

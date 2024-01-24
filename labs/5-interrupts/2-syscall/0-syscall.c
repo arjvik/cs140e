@@ -21,17 +21,17 @@ void interrupt_vector(unsigned pc) {
 //      can see the encoding on a3-29:  lower 24 bits hold the encoding.
 // r0 = the first argument passed to the system call.
 int syscall_vector(unsigned pc, uint32_t r0) {
-    uint32_t inst, sys_num;
+    uint32_t inst = *((unsigned *) pc);
+    uint32_t sys_num = inst & ~0xff000000;
 
     // figure out the instruction and the system call number.
-    unimplemented();
     trace("inst=%b, sys_num=%d\n", inst, sys_num);
 
     switch(sys_num) {
     case 1: 
-            trace("syscall: <%s>\n", (const char *)r0); 
+            trace("syscall: <%s>\n", (const char *) r0); 
             return 0;
-    default: 
+    default:
             trace("illegal system call = %d!\n", sys_num);
             return -1;
     }

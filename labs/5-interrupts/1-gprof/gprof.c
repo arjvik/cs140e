@@ -24,23 +24,38 @@
  *	- gprof_dump will print out all samples.
  */
 
+volatile unsigned *histogram;
+
+const unsigned __code_start = (unsigned) __code_start__;
+const unsigned __code_end = (unsigned) __code_end__;
+
 // allocate table.
 //    few lines of code
 static unsigned gprof_init(void) {
-    unimplemented();
+    histogram = kmalloc((__code_end - __code_start) * sizeof(histogram[0]));
+    for (int i = 0; i < __code_end - __code_start; i++)
+        histogram[i] = 0;
+    return 1;
 }
 
 // increment histogram associated w/ pc.
 //    few lines of code
 static void gprof_inc(unsigned pc) {
-    unimplemented();
+    // system_disable_interrupts();
+    histogram[pc - (unsigned) __code_start]++;
+    // system_enable_interrupts();
 }
 
 // print out all samples whose count > min_val
 //
 // make sure sampling does not pick this code up!
 static void gprof_dump(unsigned min_val) {
-    unimplemented();
+    system_disable_interrupts();
+    volatile unsigned *i = histogram;
+    for (unsigned i = 0; i < (__code_end - __code_start); i++)
+        if (histogram[i] > 0)
+            printk("pc=%x hit %d times\n", i + __code_start, histogram[i]);
+    system_enable_interrupts();
 }
 
 
@@ -106,11 +121,11 @@ void notmain() {
 
     // caches_enable(); 	// Q: what happens if you enable cache?
     unsigned iter = 0;
-    while(cnt<200) {
+    while(cnt<200) {//200
         printk("iter=%d: cnt = %d, period = %dusec, %x\n",
                 iter,cnt, period,period);
         iter++;
-        if(iter % 10 == 0)
+        if(iter % 10 == 0)//% 10 == 0
             gprof_dump(2);
     }
     clean_reboot();

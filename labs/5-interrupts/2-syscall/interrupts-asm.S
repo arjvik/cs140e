@@ -65,6 +65,33 @@ _data_abort_asm:              .word data_abort_asm
 _interrupt_asm:               .word interrupt_asm
 _interrupt_table_end:
 
+.globl _int_table_user
+.globl _int_table_user_end
+_int_table_user:
+  ldr pc, _reset_asm_user
+  ldr pc, _undefined_instruction_asm_user
+  ldr pc, _software_interrupt_asm_user
+  ldr pc, _prefetch_abort_asm_user
+  ldr pc, _data_abort_asm_user
+  ldr pc, _reset_asm_user
+  ldr pc, _interrupt_asm_user
+_fast_interrupt_asm_user:
+  sub   lr, lr, #4 @First instr of FIQ handler
+  push  {lr}
+  push  {r0-r12}
+  mov   r0, lr              @ Pass old pc
+  bl    fast_interrupt_vector    @ C function
+  pop   {r0-r12}
+  ldm   sp!, {pc}^
+
+_reset_asm_user:                   .word reset_asm
+_undefined_instruction_asm_user:   .word undefined_instruction_asm
+_software_interrupt_asm_user:      .word software_interrupt_asm_user
+_prefetch_abort_asm_user:          .word prefetch_abort_asm
+_data_abort_asm_user:              .word data_abort_asm
+_interrupt_asm_user:               .word interrupt_asm
+_int_table_user_end:
+
 @ only handler that should run since we only enable general interrupts
 interrupt_asm:
   mov sp, #INT_STACK_ADDR   @ i believe we have 512mb - 16mb, so this should be safe
@@ -85,17 +112,24 @@ interrupt_asm:
                         @ SPSR to the CPSR.
 
 @ change this to call your system call handler.
+software_interrupt_asm_user:
+    mov sp, #INT_STACK_ADDR 
 software_interrupt_asm:
     @ runs at system level (p.a2-5): assumes we have a sp
     @ implement: 
     @   - save regs
+    push {r4-r11,lr}
     @   - need to figure out what lr points to,
+    sub lr, lr, #4
     @   - mov the original r0 into r1
+    mov r1, r0
     @   - mov the pointer to the syscall inst into r0
+    mov r0, lr
     @   - call
+    bl syscall_vector
     @   - restore regs
+    pop {r4-r11,lr}
     @   - return from the exception.
-    asm_not_implemented()
     movs pc, lr
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
