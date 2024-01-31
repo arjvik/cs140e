@@ -1,164 +1,172 @@
-// engler, cs140e: driver for "bootloader" for an r/pi connected via 
-// a tty-USB device.
-//
-// most of it is argument parsing.
-//
-// Unless you know what you are doing:
-//              DO NOT MODIFY THIS CODE!
-//              DO NOT MODIFY THIS CODE!
-//              DO NOT MODIFY THIS CODE!
-//              DO NOT MODIFY THIS CODE!
-//              DO NOT MODIFY THIS CODE!
-//
-// You shouldn't have to modify any code in this file.  Though, if you find
-// a bug or improve it, let us know!
-#include <ctype.h>
-#include <stdarg.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <termios.h>
-#include <assert.h>
+#include <unistd.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <assert.h>
+#include <termios.h>
+#include <fcntl.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <sys/stat.h>
 
-static char *progname = 0;
+#include "boot-protocol.h"
 
-static void usage(const char *msg, ...) {
-    va_list args;
-    va_start(args, msg);
-    vfprintf(stderr, msg, args);
-    va_end(args);
+#define panic(msg...) do { fprintf(stderr, "%s:%d (%s): ", __FILE__, __LINE__, __FUNCTION__); exit(1); } while(0)
 
-    output("\nusage: %s  [--trace-all] [--trace-control] ([device] | [--last] | [--first] [--device <device>]) <pi-program> \n", progname);
-    output("    pi-program = has a '.bin' suffix\n");
-    output("    specify a device using any method:\n");
-    output("        <device>: has a '/dev' prefix\n");
-    output("       --last: gets the last serial device mounted\n");
-    output("        --first: gets the first serial device mounted\n");
-    output("        --device <device>: manually specify <device>\n");
-    output("    --baud <baud_rate>: manually specify baud_rate\n");
-    output("    --trace-all: trace all put/get between rpi and unix side\n");
-    output("    --trace-control: trace only control [no data] messages\n");
-    exit(1);
+typedef int fd_t;
+
+const int timeout = 10;
+const char *const endmsg = "DONE!!!";
+
+fd_t getTTY(const char *device, speed_t baud) {
+    fd_t fd = open(device, O_RDWR | O_NOCTTY | O_SYNC);
+    assert(fd >= 0 && "Error opening device");
+    
+    struct termios tty;
+    memset(&tty, 0, sizeof tty);
+    cfsetspeed(&tty, baud);
+
+    // https://github.com/rlcheng/raspberry_pi_workshop
+
+    // disable IGNBRK for mismatched speed tests; otherwise receive break
+    // as \000 chars
+
+    // XXX: wait, does this disable break or ignore-ignore break??
+    tty.c_iflag &= ~IGNBRK;         // disable break processing
+    tty.c_lflag = 0;                // no signaling chars, no echo,
+    // no canonical processing
+    tty.c_oflag = 0;                // no remapping, no delays
+    tty.c_cc[VMIN]  = 0;            // read doesn't block
+    assert(timeout < 100 && timeout > 0);
+    // VTIME is in .1 seconds, so have to multiply by 10.
+    tty.c_cc[VTIME] = (int)(timeout * 10);             // this seems to cause issues?
+
+	/*
+	 * Setup TTY for 8n1 mode, used by the pi UART.
+	 */
+
+    // Disables the Parity Enable bit(PARENB),So No Parity 
+    tty.c_cflag &= ~PARENB; 	
+    // CSTOPB = 2 Stop bits,here it is cleared so 1 Stop bit 
+    tty.c_cflag &= ~CSTOPB;   	
+    // Clears the mask for setting the data size     
+    tty.c_cflag &= ~CSIZE;	 	
+    // Set the data bits = 8
+    tty.c_cflag |=  CS8; 		
+    // No Hardware flow Control 
+    tty.c_cflag &= ~CRTSCTS;
+    // Enable receiver,Ignore Modem Control lines 
+    tty.c_cflag |= CREAD | CLOCAL; 	
+    	
+    // Disable XON/XOFF flow control both i/p and o/p
+    tty.c_iflag &= ~(IXON | IXOFF | IXANY);    
+    // Non Cannonical mode 
+    tty.c_iflag &= ~(ICANON | ECHO | ECHOE | ISIG);  
+    // No Output Processing
+    tty.c_oflag &= ~OPOST;	
+
+    if(tcsetattr (fd, TCSANOW, &tty) != 0)
+        panic("tcsetattr failed\n");
+    return fd;
 }
 
-int main(int argc, char *argv[]) { 
-    char *dev_name = 0;
-    char *pi_prog = 0;
+uint8_t get8(fd_t fd) {
+    uint8_t b;
+    assert(read(fd, &b, 1) == 1);
+    return b;
+}
 
-    // used to pass the file descriptor to another program.
-    char **exec_argv = 0;
+uint32_t get32(fd_t fd) {
+    uint32_t b = 0;
+    b |= get8(fd);
+    b |= get8(fd) << 8;
+    b |= get8(fd) << 16;
+    b |= get8(fd) << 24;
+    return b;
+}
 
-    // a good extension challenge: tune timeout and baud rate transmission
-    //
-    // on linux, baud rates are defined in:
-    //  /usr/include/asm-generic/termbits.h
-    //
-    // when I tried with sw-uart, these all worked:
-    //      B9600
-    //      B115200
-    //      B230400
-    //      B460800
-    //      B576000
-    // can almost do: just a weird start character.
-    //      B1000000
-    // all garbage?
-    //      B921600
-    unsigned baud_rate = B115200;
+void put8(fd_t fd, uint8_t b) {
+    assert(write(fd, &b, 1) == 1);
+}
 
-    // by default is 0x8000
-    unsigned boot_addr = ARMBASE;
+void put32(fd_t fd, uint32_t b) {
+    assert(write(fd, &b, 4) == 4);
+}
 
-    // we do manual option parsing to make things a bit more obvious.
-    // you might rewrite using getopt().
-    progname = argv[0];
-    for(int i = 1; i < argc; i++) {
-        if(strcmp(argv[i], "--trace-control") == 0)  {
-            trace_p = TRACE_CONTROL_ONLY;
-        } else if(strcmp(argv[i], "--trace-all") == 0)  {
-            trace_p = TRACE_ALL;
-        } else if(strcmp(argv[i], "--last") == 0)  {
-            dev_name = find_ttyusb_last();
-        } else if(strcmp(argv[i], "--first") == 0)  {
-            dev_name = find_ttyusb_first();
-        // we assume: anything that begins with /dev/ is a device.
-        } else if(prefix_cmp(argv[i], "/dev/")) {
-            dev_name = argv[i];
-        // we assume: anything that ends in .bin is a pi-program.
-        } else if(suffix_cmp(argv[i], ".bin")) {
-            pi_prog = argv[i];
-        } else if(strcmp(argv[i], "--baud") == 0) {
-            i++;
-            if(!argv[i])
-                usage("missing argument to --baud\n");
-            baud_rate = atoi(argv[i]);
-        } else if(strcmp(argv[i], "--addr") == 0) {
-            i++;
-            if(!argv[i])
-                usage("missing argument to --addr\n");
-            boot_addr = atoi(argv[i]);
-        } else if(strcmp(argv[i], "--exec") == 0) {
-            i++;
-            if(!argv[i])
-                usage("missing argument to --exec\n");
-            exec_argv = &argv[i];
-            break;
-        } else if(strcmp(argv[i], "--device") == 0) {
-            i++;
-            if(!argv[i])
-                usage("missing argument to --device\n");
-            dev_name = argv[i];
-        } else {
-            usage("unexpected argument=<%s>\n", argv[i]);
+void skip_handle_print_op(fd_t tty, uint32_t *op) {
+    while (*op == PRINT_STRING) {
+        uint32_t len = get32(tty);
+        assert(len < 512 && "String suspiciously long");
+        fprintf(stderr, "BOOT: ", len);
+        for (fd_t i = 0; i < len; i++) {
+            fprintf(stderr, "%c", get8(tty));
         }
+        fprintf(stderr, "\n");
+        *op = get32(tty); // Already aligned
     }
-    if(!pi_prog)
-        usage("no pi program\n");
+}
 
-    // 1. get the name of the ttyUSB.
-    if(!dev_name) {
-        dev_name = find_ttyusb_last();
-        if(!dev_name)
-            panic("didn't find a device\n");
+uint32_t get_op(fd_t tty) {
+    uint32_t op = get32(tty);
+    skip_handle_print_op(tty, &op);
+    return op;
+}
+
+void *read_code(const char *name, unsigned *size) {
+    FILE *f = fopen(name, "rb");
+    if (!f) panic("failed to open file %s", name);
+    struct stat st;
+    fstat(fileno(f), &st);
+    *size = st.st_size;
+    uint8_t *const buf = calloc((*size + 3) & ~3, sizeof(buf[0]));
+    assert(buf);
+    fread(buf, sizeof(*buf), *size, f);
+    fclose(f);
+    return buf;
+}
+
+void boot(const char *filename, const char *device, speed_t baud) {
+    uint32_t bufsize;
+    char *buf = read_code(filename, &bufsize);
+    uint32_t crc = crc32(buf, bufsize);
+    fprintf(stderr, "CRC: %x\n", crc);
+
+    fd_t tty = getTTY(device, baud);
+    uint8_t b;
+    uint32_t op = 0;
+    while (op != GET_PROG_INFO) {
+        // Can't use get_op because not dword aligned yet
+        op = op >> 8 | (uint32_t) get8(tty) << 24;
+        skip_handle_print_op(tty, &op);
     }
-    debug_output("done with options: dev name=<%s>, pi-prog=<%s>, trace=%d\n", 
-            dev_name, pi_prog, trace_p);
-
-    if(exec_argv)
-        argv_print("BOOT: --exec argv:", exec_argv);
-
-    // 2. open the ttyUSB in 115200, 8n1 mode
-    int tty = open_tty(dev_name);
-    if(tty < 0)
-        panic("can't open tty <%s>\n", dev_name);
-
-    // timeout is in tenths of a second.  tuning this can speed up
-    // checking.
-    //
-    // if you are on linux you can shrink down the <2*8> timeout
-    // threshold.  if your my-install isn't reseting when used 
-    // during checkig, it's likely due to this timeout being too
-    // small.
-    double timeout_tenths = 2*5;
-    int fd = set_tty_to_8n1(tty, baud_rate, timeout_tenths);
-    if(fd < 0)
-        panic("could not set tty: <%s>\n", dev_name);
-
-    // 3. read in program [probably should just make a <file_size>
-    //    call and then shard out the pieces].
-	unsigned nbytes;
-    uint8_t *code = read_file(&nbytes, pi_prog);
-
-    // 4. let's send it!
-	debug_output("%s: tty-usb=<%s> program=<%s>: about to boot\n", 
-                progname, dev_name, pi_prog);
-    simple_boot(fd, boot_addr, code, nbytes);
-
-    // 5. echo output from pi
-    if(!exec_argv)
-        pi_echo(0, fd, dev_name);
-    else {
-        todo("not handling exec_argv");
-        handoff_to(fd, TRACE_FD, exec_argv);
+    put32(tty, PUT_PROG_INFO);
+    put32(tty, ARMBASE);
+    put32(tty, bufsize);
+    put32(tty, crc);
+    while ((op = get_op(tty)) == GET_PROG_INFO);
+    
+    if (op != GET_CODE) panic("expected GET_CODE");
+    if (get32(tty) != crc) panic("Received CRC does not match sent CRC");
+    put32(tty, PUT_CODE);
+    for (size_t i = 0; i < bufsize; i++) {
+        put8(tty, buf[i]);
     }
-	return 0;
+    if ((op = get_op(tty)) != BOOT_SUCCESS) {
+        panic("Unexpected response instead of BOOT_SUCCESS: %s", boot_op_to_str(op));
+        exit(1);
+    }
+    fprintf(stderr, ">>>>>>>>>>>>>\n");
+    const char *msgptr = endmsg;
+    while (*msgptr) {
+        char c = get8(tty);
+        if (c == *msgptr)
+            msgptr++;
+        else
+            msgptr = endmsg;
+        fprintf(stderr, "%c", c);
+    }
+}
+
+fd_t main(fd_t argc, char *argv[]) {
+    boot("../../cs140e-24win/firmware/hello.bin", "/dev/ttyUSB0", B115200);
 }
