@@ -18,6 +18,7 @@
 #define __GETCODE_H__
 #include "boot-crc32.h"  // has the crc32 implementation.
 #include "boot-defs.h"   // protocol opcode values.
+#include "memmap.h"
 
 /***************************************************************
  * Helper routines.  You shouldn't need to modify these for
@@ -115,7 +116,10 @@ boot_err(uint32_t error_opcode, const char *msg) {
 //     counter can overflow.
 static unsigned 
 has_data_timeout(unsigned timeout) {
-    boot_todo("has_data_timeout: implement this routine");
+    unsigned start = timer_get_usec();
+    while (timer_get_usec() - start < timeout)
+        if (uart_has_data())
+            return 1;
     return 0;
 }
 
@@ -137,25 +141,27 @@ static void wait_for_data(unsigned usec_timeout) {
         boot_put32(GET_PROG_INFO);
     } while(!has_data_timeout(usec_timeout));
     return;
-    boot_todo("wait_for_data: implement this routine");
 }
 
 // IMPLEMENT this routine.
 //
 // Simple bootloader: put all of your code here.
 uint32_t get_code(void) {
-    // 0. keep sending GET_PROG_INFO every 300ms until 
+    // 0. keep sendaing GET_PROG_INFO every 300ms until 
     // there is data: implement this.
     wait_for_data(300 * 1000);
 
     /****************************************************************
      * Add your code below: 2,3,4,5,6
      */
-    uint32_t addr = 0;
 
     // 2. expect: [PUT_PROG_INFO, addr, nbytes, cksum] 
     //    we echo cksum back in step 4 to help debugging.
-    boot_todo("wait for laptop/server response: echo checksum back");
+    if (boot_get32() != PUT_PROG_INFO)
+        boot_err(BOOT_ERROR, "expected PUT_PROG_INFO");
+    unsigned addr = boot_get32();
+    unsigned nbytes = boot_get32();
+    unsigned cksum = boot_get32();
 
     // 3. If the binary will collide with us, abort with a BOOT_ERROR. 
     // 
@@ -170,26 +176,32 @@ uint32_t get_code(void) {
     //       - libpi/include/memmap.h
     //       - libpi/memmap 
     //    for definitions.
-    boot_todo("check that binary will not hit the bootloader code");
+    unsigned start = (unsigned) &PUT32;
+    unsigned end = (unsigned) __code_end__;
+    if (addr <= end && addr + nbytes >= start)
+        boot_err(BOOT_ERROR, "binary will collide with bootloader code");
 
     // 4. send [GET_CODE, cksum] back.
-    boot_todo("send [GET_CODE, cksum] back\n");
+    boot_put32(GET_CODE);
+    boot_put32(cksum);
 
     // 5. we expect: [PUT_CODE, <code>]
     //  read each sent byte and write it starting at 
     //  <addr> using PUT8
     //
     // common mistake: computing the offset incorrectly.
-    boot_todo("boot_get8() each code byte and use PUT8() to write it to memory");
+    if (boot_get32() != PUT_CODE)
+        boot_err(BOOT_ERROR, "expected PUT_CODE");
+    for(unsigned i = 0; i < nbytes; i++)
+        PUT8(addr + i, boot_get8());
 
     // 6. verify the cksum of the copied code using:
     //         boot-crc32.h:crc32.
-    //    if fails, abort with a BOOT_ERROR.
-    boot_todo("verify the checksum of copied code");
+    //    if fails, abort with a BOOT_ERROR
+    crc32((void *) addr, nbytes);
 
     // 7. send back a BOOT_SUCCESS!
-    boot_putk("<PUT YOUR NAME HERE>: success: Received the program!");
-    boot_todo("fill in your name above");
+    boot_putk("ARJUN: success: Received the program!");
 
     // woo!
     boot_put32(BOOT_SUCCESS);
@@ -204,4 +216,5 @@ uint32_t get_code(void) {
 
     return addr;
 }
+
 #endif
