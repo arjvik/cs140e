@@ -22,11 +22,11 @@ void notmain() {
     if(v[2] == val2 && v[1] == val1) {
         assert(v[3] == 4);
         assert(v[0] == 1);
-        todo("what does this imply?\n");
+        todo("unexpected result\n");
     } else if(v[1] == val2 && v[0] == val1) {
         assert(v[3] == 4);
         assert(v[2] == 3);
-        todo("what does this imply?\n");
+        todo("success! what does this imply?\n");
     } else 
         panic("unexpected result\n");
 }

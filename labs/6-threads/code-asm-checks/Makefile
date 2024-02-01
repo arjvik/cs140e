@@ -1,9 +1,9 @@
 # work through these in order.
 PROGS += 1-stack-dir.c
-# PROGS += 2-where-push.c
-# PROGS += 3-push-order.c
-# PROGS += 4-callee.c
-# PROGS += 5-write-regs.c
+PROGS += 2-where-push-one.c
+PROGS += 3-push-order.c
+PROGS += 4-callee.c
+PROGS = 5-write-regs.c
 
 # most of the code you'll implement in here.
 COMMON_SRC = asm-checks.S
@@ -17,6 +17,6 @@ RUN=1
 
 # define this if you need to give the device for your pi
 TTYUSB = 
-BOOTLOADER = pi-install
+BOOTLOADER = my-install
 
 include $(CS140E_2024_PATH)/libpi/mk/Makefile.template-fixed

@@ -271,7 +271,7 @@ First, write `rpi_fork` :
       `r5`) --- the exact offsets don't matter.
 
   2. Implement `rpi_init_trampoline` in `thread-asm.S` so that
-     it loads arg` from the stack (from Step 1) into `r0`, 
+     it loads` arg` from the stack (from Step 1) into `r0`, 
      loads `code` into another register that it then uses to 
      do a branch and link.
 

@@ -17,7 +17,7 @@
 //   1. generate a routine that only clobbers <r>
 //   2. if routine is empty, <r> was a caller reg.
 static inline int is_empty(void (*fp)(void)) {
-    todo("returns 1 if routine does nothing besides return");
+    return *(uint32_t*)fp == 0xe12fff1e; // bx lr
 }
 
 // generates a function that has a single inline assembly 
@@ -47,8 +47,19 @@ static inline int is_empty(void (*fp)(void)) {
 clobber_reg_gen(r0)
 clobber_reg_gen(r1)
 clobber_reg_gen(r2)
-// todo: ... fill in the rest
+clobber_reg_gen(r3)
 clobber_reg_gen(r4)
+clobber_reg_gen(r5)
+clobber_reg_gen(r6)
+clobber_reg_gen(r7)
+clobber_reg_gen(r8)
+clobber_reg_gen(r9)
+clobber_reg_gen(r10)
+clobber_reg_gen(r11)
+clobber_reg_gen(r12)
+clobber_reg_gen(r13)
+clobber_reg_gen(r14)
+
 
 
 // FILL this in with all caller saved registers.
@@ -59,7 +70,13 @@ clobber_reg_gen(r4)
 void check_cswitch_ignore_regs(void) {
     assert_caller(r0);
     assert_caller(r1);
-    todo("add all your non-saved registers here");
+    assert_caller(r2);
+    assert_caller(r3);
+    assert_caller(r12);
+    // r13 is the stack pointer, so it's not caller or callee saved.
+    // assert_caller(r13);
+    // r15 is the pc, so it's not caller or callee saved.
+    // assert_caller(r15);
 
     // if you reach here it passed.
     trace("ignore regs passed\n");
@@ -71,7 +88,14 @@ void check_cswitch_ignore_regs(void) {
 // NOTE: ignore r13,r14,r15
 void check_cswitch_save_regs(void) {
     assert_callee(r4);
-    todo("add all your saved registers here");
+    assert_callee(r5);
+    assert_callee(r6);
+    assert_callee(r7);
+    assert_callee(r8);
+    assert_callee(r9);
+    assert_callee(r10);
+    assert_callee(r11);
+    assert_callee(r14);
     trace("saved regs passed\n");
 }
 

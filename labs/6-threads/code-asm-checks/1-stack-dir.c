@@ -7,8 +7,15 @@
 //     compiler didn't optimize the calls away.
 #include "rpi.h"
 
+unsigned test() {
+    int x;
+    unsigned addr = (unsigned) &x;
+    return addr;
+}
+
 int stack_grows_down(void) {
-    todo("implement this routine\n");
+    int x;
+    return test() < (unsigned) &x;
 }
 
 void notmain(void) {
