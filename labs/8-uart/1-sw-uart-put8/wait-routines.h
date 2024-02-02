@@ -17,13 +17,23 @@ wait_ncycles_exact_fn(
     uint32_t ncycles,       // stop when start_cycle_ncycle have passed
     void (*fn)(void))       // call while spinning if not null.
 {
-    todo("delay using cycle_cnt_read(): call fn if not null");
+    assert(fn != NULL);
+    uint32_t cnt;
+    while ((cnt = cycle_cnt_read()) < start_cycle + ncycles - 2) {
+        fn();
+    }
+    return cnt;
 }
 
 // same but no fn().
 static inline uint32_t 
-wait_ncycles_exact(uint32_t s, uint32_t n) {
-    return wait_ncycles_exact_fn(s,n,0);
+wait_ncycles_exact(uint32_t start_cycle, uint32_t ncycles) {
+    uint32_t cnt;
+    while ((cnt = cycle_cnt_read()) < start_cycle + ncycles - 2) {
+        // spin
+    }
+    return cnt;
+    // return wait_ncycles_exact_fn(s,n,0);
 }
 
 // delay for <n> cycles: if <fn> is non-null, call it 
@@ -36,7 +46,9 @@ wait_ncycles_fn(uint32_t ncycles, void (*fn)(void)) {
 
 // same, but no yield.
 static inline uint32_t wait_ncycles(uint32_t ncycles) {
-    return wait_ncycles_fn(ncycles, 0);
+    // return wait_ncycles_fn(ncycles, 0);
+    uint32_t s = cycle_cnt_read();
+    return wait_ncycles_exact(s, ncycles);
 }
 
 #endif

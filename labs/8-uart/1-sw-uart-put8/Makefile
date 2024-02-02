@@ -3,11 +3,12 @@
 
 # run all three tests 
 PROGS := 1-test-wait-ncycles.c
-# PROGS += 2-test-bitbang-put8.c
-# PROGS += 3-test-sw-uart-hello.c
+PROGS += 2-test-bitbang-put8.c
+PROGS += 3-test-sw-uart-hello.c
+PROGS += 4-switch-uart.c
 
 # checkoff.
-PROGS := $(wildcard [123]*-test*.c)
+PROGS := $(wildcard [1234]*-test*.c)
 
 # all of these should be turned off for checkoff.  
 # to use your sw-uart uncomment:
