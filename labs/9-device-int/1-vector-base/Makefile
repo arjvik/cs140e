@@ -16,8 +16,8 @@ BOOTLOADER = my-install
 OPT_LEVEL = -O2
 
 EXCLUDE ?= grep -v simple_boot
-# include $(CS140E_2024_PATH)/libpi/mk/Makefile.robust
-include $(CS140E_2024_PATH)/libpi/mk/Makefile.template-fixed
+include $(CS140E_2024_PATH)/libpi/mk/Makefile.robust
+# include $(CS140E_2024_PATH)/libpi/mk/Makefile.template-fixed
 
 checkoff:
 	make -f ./checkoff.mk

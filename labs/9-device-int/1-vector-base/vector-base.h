@@ -14,13 +14,14 @@
 
 // return the current value vector base is set to.
 static inline void *vector_base_get(void) {
-    todo("implement using inline assembly to get the vec base reg");
+    void *vec;
+    asm volatile("MRC p15, 0, %0, c12, c0, 0" : "=r" (vec));
+    return vec;
 }
 
 // check that not null and alignment is good.
 static inline int vector_base_chk(void *vector_base) {
-    todo("check that not null and alignment is correct.");
-    return 1;
+    return (unsigned) vector_base && !((unsigned) vector_base & 0x1F);
 }
 
 // set vector base: must not have been set already.
@@ -36,7 +37,8 @@ static inline void vector_base_set(void *vec) {
     if(v) 
         panic("vector base register already set=%p\n", v);
 
-    todo("set vector base here.");
+    // set the vector base register using inline assembly with MCR instruction
+    asm volatile("MCR p15, 0, %0, c12, c0, 0" : : "r" (vec));
 
     // make sure it equals <vec>
     v = vector_base_get();
@@ -53,7 +55,8 @@ vector_base_reset(void *vec) {
     if(!vector_base_chk(vec))
         panic("illegal vector base %p\n", vec);
 
-    todo("validate <vec> and set as vector base\n");
+    old_vec = vector_base_get();
+    asm volatile("MCR p15, 0, %0, c12, c0, 0" : : "r" (vec));
 
     assert(vector_base_get() == vec);
     return old_vec;
