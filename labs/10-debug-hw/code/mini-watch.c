@@ -22,7 +22,7 @@ static void *watchpt_data = 0;
 
 // is it a load fault?
 static int mini_watch_load_fault(void) {
-    todo("implement");
+    return datafault_from_ld();
 }
 
 // if we have a dataabort fault, call the watchpoint
@@ -36,10 +36,11 @@ static void watchpt_fault(regs_t *r) {
     if(!watchpt_handler)
         panic("watchpoint fault without a fault handler\n");
 
-    watch_fault_t w = {0};
+    watch_fault_t w = watch_fault_mk(watchpt_fault_pc(), (unsigned *) cp15_far_get(), mini_watch_load_fault(), r);
+    watchpt_handler(watchpt_data, &w);
 
-    todo("setup the <watch_fault_t> structure");
-    todo("call: watchpt_handler(watchpt_data, &w);");
+    // todo("setup the <watch_fault_t> structure");
+    // todo("call: watchpt_handler(watchpt_data, &w);");
 
     // in case they change the regs.
     switchto(w.regs);
@@ -51,7 +52,10 @@ static void watchpt_fault(regs_t *r) {
 //   - setup the watchpoint handler
 // (see: <1-watchpt-test.c>
 void mini_watch_init(watch_handler_t h, void *data) {
-    todo("setup cp14 and the full exception routines");
+    // todo("setup cp14 and the full exception routines");
+    full_except_install(0);
+    full_except_set_data_abort(watchpt_fault);
+    cp14_enable();
 
     // just started, should not be enabled.
     assert(!cp14_bcr0_is_enabled());
@@ -63,22 +67,23 @@ void mini_watch_init(watch_handler_t h, void *data) {
 
 // set a watch-point on <addr>.
 void mini_watch_addr(void *addr) {
-    todo("watch <addr>");
-    assert(cp14_wcr0_is_enabled());
+    uint32_t b = 0x1F | 1 << (5 + ((unsigned) addr) % 4);
+    cp14_wcr0_set(b);
+    cp14_wvr0_set((unsigned) addr & ~0x3);
 }
 
 // disable current watchpoint <addr>
 void mini_watch_disable(void *addr) {
-    todo("implement");
+    cp14_wcr0_disable();
 }
 
 // return 1 if enabled.
 int mini_watch_enabled(void) {
-    todo("implement");
+    return cp14_wcr0_is_enabled();
 }
 
 // called from exception handler: if the current 
 // fault is a watchpoint, return 1
 int mini_watch_is_fault(void) { 
-    todo("implement");
+    return was_watchpt_fault();
 }

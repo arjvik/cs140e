@@ -115,34 +115,51 @@ static inline uint32_t cp14_dscr_get(void);
 coproc_mk(status, p14, 0, c0, c1, 0)
 
 // you'll need to define these and a bunch of other routines.
-static inline uint32_t cp15_dfsr_get(void) { todo("implement"); }
-static inline uint32_t cp15_ifar_get(void) { todo("implement"); }
-static inline uint32_t cp15_ifsr_get(void) { todo("implement"); }
-static inline uint32_t cp14_dscr_get(void) { todo("implement"); }
-static inline uint32_t cp14_wcr0_set(uint32_t r) { todo("implement"); }
 
-static inline void cp14_wvr0_set(uint32_t r) { todo("implement"); }
-static inline void cp14_bcr0_set(uint32_t r) { todo("implement"); }
-static inline void cp14_bvr0_set(uint32_t r) { todo("implement"); }
+// static inline uint32_t cp15_dfsr_get(void) { todo("implement"); }
+// MRC p15, 0, <Rd>, c5, c0, 0
+coproc_mk_get(dfsr, p15, 0, c5, c0, 0)
+// static inline uint32_t cp15_ifar_get(void) { todo("implement"); }
+// MRC p15, 0, <Rd>, c6, c0, 2
+coproc_mk_get(ifar, p15, 0, c6, c0, 2)
+// static inline uint32_t cp15_ifsr_get(void) { todo("implement"); }
+// MRC p15, 0, <Rd>, c5, c0, 1
+coproc_mk_get(ifsr, p15, 0, c5, c0, 1)
+// static inline uint32_t cp14_dscr_get(void) { todo("implement"); }
+// MRC p14, 0, <Rd>, c0, c1, 0
+coproc_mk_get(dscr, p14, 0, c0, c1, 0)
 
+// static inline uint32_t cp14_wcr0_set(uint32_t r) { todo("implement"); }
+coproc_mk(wcr0, p14, 0, c0, c0, 7);
+// static inline void cp14_wvr0_set(uint32_t r) { todo("implement"); }
+coproc_mk_set(wvr0, p14, 0, c0, c0, 6);
+// static inline void cp14_bcr0_set(uint32_t r) { todo("implement"); }
+coproc_mk(bcr0, p14, 0, c0, c0, 5);
+// static inline void cp14_bvr0_set(uint32_t r) { todo("implement"); }
+coproc_mk(bvr0, p14, 0, c0, c0, 4);
+
+coproc_mk(wfar, p14, 0, c0, c6, 0);
+coproc_mk_get(far, p15, 0, c6, c0, 0);
 
 // return 1 if enabled, 0 otherwise.  
 //    - we wind up reading the status register a bunch:
 //      could return its value instead of 1 (since is 
 //      non-zero).
 static inline int cp14_is_enabled(void) {
-    unimplemented();
+    unsigned status = cp14_status_get();
+    // return bit_is_off(status, 14) && bit_is_on(status, 15);
+    return !(status & 1 << 14) && (status & 1 << 15);
 }
 
 // enable debug coprocessor 
 static inline void cp14_enable(void) {
     // if it's already enabled, just return?
-    if(cp14_is_enabled())
-        panic("already enabled\n");
+    // if(cp14_is_enabled())
+        // panic("already enabled\n");
 
     // for the core to take a debug exception, monitor debug mode has to be both 
     // selected and enabled --- bit 14 clear and bit 15 set.
-    unimplemented();
+    cp14_status_set((cp14_status_get() | 1 << 15) & ~(1 << 14));
 
     assert(cp14_is_enabled());
 }
@@ -152,33 +169,32 @@ static inline void cp14_disable(void) {
     if(!cp14_is_enabled())
         return;
 
-    unimplemented();
+    cp14_status_set((cp14_status_get() & ~(1 << 15)) | (1 << 14));
 
     assert(!cp14_is_enabled());
 }
 
 
 static inline int cp14_bcr0_is_enabled(void) {
-    unimplemented();
+    return cp14_bcr0_get() & 1;
 }
 static inline void cp14_bcr0_enable(void) {
-    unimplemented();
+    cp14_bcr0_set(cp14_bcr0_get() | 1);
 }
 static inline void cp14_bcr0_disable(void) {
-    unimplemented();
+    cp14_bcr0_set(cp14_bcr0_get() & ~1);
 }
 
 // was this a brkpt fault?
 static inline int was_brkpt_fault(void) {
-    // use IFSR and then DSCR
-    unimplemented();
-
-    return 0;
+    unsigned ifstatus = cp15_ifsr_get();
+    unsigned debugstatus = cp14_status_get();
+    return !(ifstatus & 1 << 10) && ((ifstatus & 0xf) == 0x2) && ((debugstatus & 0x3C) == 0x4);
 }
-
 // was watchpoint debug fault caused by a load?
 static inline int datafault_from_ld(void) {
-    return bit_isset(cp15_dfsr_get(), 11) == 0;
+    // return bit_isset(cp15_dfsr_get(), 11) == 0;
+    return !(cp15_dfsr_get() & 1 << 11);
 }
 // ...  by a store?
 static inline int datafault_from_st(void) {
@@ -189,22 +205,24 @@ static inline int datafault_from_st(void) {
 // 13-33: tabl 13-23
 static inline int was_watchpt_fault(void) {
     // use DFSR then DSCR
-    unimplemented();
+    unsigned datafstatus = cp15_dfsr_get();
+    unsigned debugstatus = cp14_status_get();
+    return !(datafstatus & 1 << 10) && ((datafstatus & 0xf) == 0x2) && ((debugstatus & 0x3C) == 0x8);
 }
 
 static inline int cp14_wcr0_is_enabled(void) {
-    unimplemented();
+    return cp14_wcr0_get() & 1;
 }
 static inline void cp14_wcr0_enable(void) {
-    unimplemented();
+    cp14_wcr0_set(cp14_wcr0_get() | 1);
 }
 static inline void cp14_wcr0_disable(void) {
-    unimplemented();
+    cp14_wcr0_set(cp14_wcr0_get() & ~1);
 }
 
 // Get watchpoint fault using WFAR
 static inline uint32_t watchpt_fault_pc(void) {
-    unimplemented();
+    return cp14_wfar_get() - 0x8;
 }
     
 #endif

@@ -28,7 +28,9 @@ static inline uint32_t mismatch_pc_set(uint32_t pc) {
 
     // set a mismatch (vs match) using bvr0 and bcr0 on
     // <pc>
-    todo("setup mismatch on <pc> using bvr0/bcr0");
+    cp14_bcr0_set(0b10 << 21 | 0x1E7);
+    cp14_bvr0_set(pc);
+    prefetch_flush();
 
     assert( cp14_bvr0_get() == pc);
     return old_pc;
@@ -53,7 +55,8 @@ static inline void mismatch_off(void) {
 
     // RMW bcr0 to disable breakpoint, 
     // make sure you do a prefetch_flush!
-    todo("turn mismatch off, but don't modify anything else");
+    cp14_bcr0_disable();
+    prefetch_flush();
 }
 
 // once the traced code calls this, it's done.
@@ -82,15 +85,17 @@ static void mismatch_fault(regs_t *r) {
         not_reached();
     }
 
-    step_fault_t f = {};
-    todo("setup fault handler and call step_handler");
-    todo("setup a mismatch on pc");
+    step_fault_t f = step_fault_mk(pc, r);
+    step_handler(step_handler_data, &f);
+    // todo("setup fault handler and call step_handler");
+    // todo("setup a mismatch on pc");
+    mismatch_pc_set(pc);
 
     // otherwise there is a race condition if we are 
     // stepping through the uart code --- note: we could
     // just check the pc and the address range of
     // uart.o
-    while(!uart_can_putc())
+    while(!uart_can_put8())
         ;
 
     switchto(r);
@@ -104,7 +109,10 @@ void mini_step_init(step_handler_t h, void *data) {
     step_handler_data = data;
     step_handler = h;
 
-    todo("setup the rest");
+    // todo("setup the rest");
+    full_except_install(0);
+    full_except_set_prefetch(mismatch_fault);
+    cp14_enable();
 
     // just started, should not be enabled.
     assert(!cp14_bcr0_is_enabled());
