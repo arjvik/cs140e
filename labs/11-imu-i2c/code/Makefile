@@ -1,14 +1,17 @@
 PROGS = driver-accel.c
-# PROGS = driver-gyro.c
+PROGS += driver-gyro.c
+
+PROGS = fat32-gemma.c
 
 # when you build yours swap this.
-# COMMON_SRC = mpu-6050.c
-STAFF_OBJS += staff-mpu-6050.o
+COMMON_SRC = mpu-6050.c
+COMMON_SRC = emmc.c
+# STAFF_OBJS += staff-mpu-6050.o
 
 # if you make your own i2c, get rid of this.
 # default: is too slow.
 # STAFF_OBJS += staff-i2c.o 
-STAFF_OBJS += staff-faster-i2c.o 
+# STAFF_OBJS += staff-faster-i2c.o 
 
 # set to 1 if you want it to automatically run.
 RUN=0
