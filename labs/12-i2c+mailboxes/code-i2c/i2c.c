@@ -55,21 +55,66 @@ static volatile RPI_i2c_t *i2c = (void*)0x20804000; 	// BSC1
 
 // extend so this can fail.
 int i2c_write(unsigned addr, uint8_t data[], unsigned nbytes) {
-    todo("implement");
-	return 1;
+	dev_barrier();
+	while (i2c->status & 1)
+		;
+	check_dev_addr(addr);
+    i2c->dev_addr = addr;
+	check_dlen(nbytes);
+	i2c->dlen = nbytes;
+
+	i2c->control = 1 << 15 | 1<<7; // enable, start
+	for(int i = 0; i < nbytes; i++) {
+		while (!(i2c->status & 1<<4))
+			;
+		i2c->fifo = data[i];
+	}
+	
+	while (!(i2c->status & 1<<1))
+		;
+	i2c->status = 1 << 1;
+	assert(!(i2c->status & 1<<0));
+	return nbytes;
 }
 
 // extend so it returns failure.
 int i2c_read(unsigned addr, uint8_t data[], unsigned nbytes) {
-    todo("implement");
-	return 1;
+	dev_barrier();
+	while (i2c->status & 1)
+		;
+	check_dev_addr(addr);
+	i2c->dev_addr = addr;
+	check_dlen(nbytes);
+	i2c->dlen = nbytes;
+	i2c->control = 1 << 15 | 1<<7 | 1<<4 | 1<<0; // enable, start, clear fifo, read
+
+	for(int i = 0; i < nbytes; i++) {
+		while (!(i2c->status & 1<<5))
+			;
+		data[i] = i2c->fifo;
+	}
+	while (!(i2c->status & 1<<1))
+		;
+	i2c->status = 1 << 1;
+	assert(!(i2c->status & 1<<0));
+	return nbytes;
 }
 
 void i2c_init(void) {
-    todo("setup GPIO, setup i2c, sanity check results");
+	dev_barrier();
+	gpio_set_function(2, GPIO_FUNC_ALT0); // SDA1
+	gpio_set_function(3, GPIO_FUNC_ALT0); // SCL1
+	dev_barrier();
+	i2c->control = 1 << 15;
+	i2c->status = 1 << 9 | 1 << 8 | 1 << 1;
+	i2c->control = 1 << 15 | 1 << 4 | 1 << 0;
+	i2c->control = 1 << 15 | 1 << 4;
+	assert(!(i2c->status & (1 << 0)) && i2c->status & (1 << 6));
 }
 
 // shortest will be 130 for i2c accel.
 void i2c_init_clk_div(unsigned clk_div) {
-    todo("same as init but set the clock divider");
+	i2c_init();
+	check_clock_div(clk_div);
+	i2c->clock_div = clk_div;
 }
