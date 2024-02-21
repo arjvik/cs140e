@@ -6,14 +6,27 @@
 @ do_syscall (defined in `2-reg-save.c` and 
 @ `2-reg-save-full.c`).
 @
-swi_trampoline:
+priv_swi_trampoline:
     sub sp, sp, #68
-    stm sp, {r0-r14}^
-    
+
+
+    stm sp, {r0-r7}
     str lr, [sp, #60]
     
     mrs r4, spsr
     str r4, [sp, #64]
+
+    add r0, sp, #32
+
+    mrs r2, cpsr
+    mrs r1, spsr
+    msr cpsr_c, r1
+    prefetch_flush(r1)
+    
+    stm r0, {r8-r14}
+    
+    msr cpsr_c, r2
+    prefetch_flush(r2)
 
     mov r0, sp
 
@@ -24,17 +37,12 @@ swi_trampoline:
 
 @ only handle single step.
 .align 5;
-.globl swi_test_handlers
-swi_test_handlers:
+.globl priv_swi_test_handlers
+priv_swi_test_handlers:
     b unhandled_reset
     b unhandled_undefined_instruction
-    b swi_trampoline
+    b priv_swi_trampoline
     b unhandled_prefetch_abort 
     b unhandled_data_abort
     b unhandled_interrupt
     b unhandled_fiq
-
-
-.weak do_syscall
-do_syscall:
-    asm_not_reached();

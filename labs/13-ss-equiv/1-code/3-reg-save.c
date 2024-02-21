@@ -36,6 +36,11 @@ int do_syscall(uint32_t regs[17]) {
     clean_reboot();
 }
 
+void tmp(uint32_t *a) {
+    printk("a = %x\n", *a);
+    clean_reboot();
+}
+
 #if 0
 void simple_single_step(uint32_t regs[17]) {
     static int cnt;
@@ -63,15 +68,15 @@ void nop_10(void);
 void mov_ident(void);
 
 void notmain(void) {
-    extern uint32_t swi_test_handlers[];
-    vector_base_set(swi_test_handlers);
+    extern uint32_t priv_swi_test_handlers[];
+    vector_base_set(priv_swi_test_handlers);
     // brkpt_mismatch_start(); 
 
     output("about to check that swi test works\n");
     // from <1-srs-rfe.c>
     uint32_t regs[2];
     regs[0] = (uint32_t)mov_ident;   // in <start.S>
-    regs[1] = USER_MODE;
+    regs[1] = UNDEF_MODE;
     trace("about to jump to pc=[%x] with cpsr=%x\n", regs[0], regs[1]);
     rfe_asm(regs);
 }

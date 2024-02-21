@@ -36,42 +36,26 @@ int do_syscall(uint32_t regs[17]) {
     clean_reboot();
 }
 
-#if 0
-void simple_single_step(uint32_t regs[17]) {
-    static int cnt;
 
-    if(!brkpt_fault_p())
-        panic("pc=%x: is not a breakpoint fault??\n", pc);
+void swi_fn(void);
+void switchto_priv_asm(uint32_t regs[17]);
 
-    trace("---------------------------------------\n");
-    trace("cnt=%d: single step pc=%x\n", i, regs[15]);
-    for(unsigned i = 0; i < 17; i++)
-        if(regs[i]))
-            trace("reg[%d]=%x\n", i, regs[i]);
-
-    uint32_t spsr = spsr_get();
-    if(mode_get(spsr) != USER_MODE)
-        panic("pc=%x: is not at user level: <%s>?\n", pc, mode_str(spsr));
-    if(regs[16] != spsr)
-        panic("saved spsr %x not equal to <%x>?\n", regs[16], spsr);
-    brkpt_mismatch_set(pc);
-}
-#endif
-
-void rfe_asm(uint32_t regs[2]);
 void nop_10(void);
 void mov_ident(void);
 
 void notmain(void) {
-    extern uint32_t swi_test_handlers[];
-    vector_base_set(swi_test_handlers);
-    // brkpt_mismatch_start(); 
+    extern uint32_t priv_swi_test_handlers[];
+    vector_base_set(priv_swi_test_handlers);
 
     output("about to check that swi test works\n");
-    // from <1-srs-rfe.c>
-    uint32_t regs[2];
-    regs[0] = (uint32_t)mov_ident;   // in <start.S>
-    regs[1] = USER_MODE;
-    trace("about to jump to pc=[%x] with cpsr=%x\n", regs[0], regs[1]);
-    rfe_asm(regs);
+
+    uint32_t regs[17];
+    for(unsigned i = 0; i < 15; i++)
+        regs[i] = i;
+    regs[13] = INT_STACK_ADDR;
+    regs[15] = (uint32_t)swi_fn;   // in <start.S>
+    regs[16] = UNDEF_MODE;
+    trace("about to jump to pc=[%x] with cpsr=%x\n",
+            regs[15], regs[16]);
+    switchto_priv_asm(regs);
 }

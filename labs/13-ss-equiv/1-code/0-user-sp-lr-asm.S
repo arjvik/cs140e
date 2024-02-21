@@ -21,17 +21,38 @@ MK_FN(user_sp_get)
 
 @ set the USER sp
 MK_FN(user_sp_set)
-    asm_todo(implement this using a macro to wrap things up);
+    cps #SYS_MODE
+    prefetch_flush(r1);
+
+    mov sp, r0
+
+    cps #SUPER_MODE
+    prefetch_flush(r1);
+
     bx lr
 
 @ get the USER lr 
 MK_FN(user_lr_get)
-    asm_todo(implement this using a macro to wrap things up);
+    cps #SYS_MODE
+    prefetch_flush(r1);
+
+    mov r0, lr
+
+    cps #SUPER_MODE
+    prefetch_flush(r1);
+
     bx lr
 
 @ set USER lr 
 MK_FN(user_lr_set)
-    asm_todo(implement this using a macro to wrap things up);
+    cps #SYS_MODE
+    prefetch_flush(r1);
+
+    mov lr, r0
+    
+    cps #SUPER_MODE
+    prefetch_flush(r1);
+
     bx lr
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -45,29 +66,29 @@ MK_FN(mem_user_sp_get)
 
 @ address to a uint32_t word is passed in r0
 MK_FN(mem_user_sp_set)
-    asm_todo("implement this");
+    ldm r0, {sp}^
     bx lr
 
 @ address to a uint32_t word is passed in r0
 MK_FN(mem_user_lr_get)
-    asm_todo("implement this");
+    stm r0, {lr}^
     bx lr
 
 @ address to a uint32_t word is passed in r0
 MK_FN(mem_user_lr_set)
-    asm_todo("implement this");
+    ldm r0, {lr}^
     bx lr
 
 @ address to an array with two uint32_t words 
 @ is passed in r0
 MK_FN(mem_user_sp_lr_get)
-    asm_todo("implement this");
+    stm r0, {sp, lr}^
     bx lr
 
 @ address to an array with two uint32_t words 
 @ is passed in r0
 MK_FN(mem_user_sp_lr_set)
-    asm_todo("implement this");
+    ldm r0, {sp, lr}^
     bx lr
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -77,6 +98,13 @@ MK_FN(mem_user_sp_lr_set)
 
 @ void mode_get_lr_sp_asm(mode, &sp, &lr)
 MK_FN(mode_get_lr_sp_asm)
-    asm_todo("implement this");
+    mrs r4, cpsr
+    msr cpsr_c, r0
+
+    stm r1, {sp}
+    stm r2, {lr}
+
+    msr cpsr_c, r4
+    
     bx lr
 
