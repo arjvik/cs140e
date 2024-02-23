@@ -1,0 +1,2 @@
+CRC: 87ebfc10
+my-install: my-install.c:75: get8: Assertion `read(fd, &b, 1) == 1' failed.
