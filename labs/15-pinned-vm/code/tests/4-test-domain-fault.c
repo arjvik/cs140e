@@ -21,20 +21,42 @@ static volatile uint32_t illegal_addr;
 // we expected.
 static void fault_handler(regs_t *r) {
     uint32_t fault_addr;
+    uint32_t dfsr;
 
     // b4-44
     asm volatile("MRC p15, 0, %0, c6, c0, 0" : "=r" (fault_addr));
+
+    // ~3-66
+    // MRC p15, 0, <Rd>, c5, c0, 0
+    asm volatile("MRC p15, 0, %0, c5, c0, 0" : "=r" (dfsr));
 
     // make sure we faulted on the address that should be accessed.
     if(fault_addr != illegal_addr)
         panic("illegal fault!  expected %x, got %x\n",
             illegal_addr, fault_addr);
-    else
-        trace("SUCCESS!: got a fault on address=%x\n", fault_addr);
+    else {
+        trace("SUCCESS!: got a fault on address=%x - TYPE %s\n", fault_addr, dfsr & (1<<11) ? "WRITE" : "READ");
+        assert(fault_addr == OneMB + (OneMB >> 2));
+        staff_domain_access_ctrl_set(DOM_client << 2 | DOM_manager << 4);
+    }
+}
 
-    // done with test.
-    trace("all done: going to reboot\n");
-    clean_reboot();
+static void prefetch_fault_handler(regs_t *r) {
+    uint32_t fault_addr;
+    uint32_t dfsr;
+
+    // b4-44
+    // asm volatile("MRC p15, 0, %0, c6, c0, 2" : "=r" (fault_addr));
+    asm volatile("SUBS %0,lr,#4" : "=r" (fault_addr));
+
+    // make sure we faulted on the address that should be accessed.
+    if(fault_addr != illegal_addr)
+        panic("illegal fault!  expected %x, got %x\n", illegal_addr, fault_addr);
+    else {
+        trace("SUCCESS!: got a EXECUTION fault on address=%x\n", fault_addr);
+        staff_domain_access_ctrl_set(DOM_client << 2 | DOM_manager << 4);
+        PUT32(fault_addr, 0xe12fff1e);
+    }
 }
 
 void notmain(void) { 
@@ -81,7 +103,8 @@ void notmain(void) {
     // armv6 has 16 different domains with their own privileges.
     // just pick one for the kernel.
     enum { 
-        dom_kern = 1, // domain id for kernel
+        dom_kern = 1, // domain id for kernel,
+        dom_heap = 2, // domain id for kmalloc heap
     };          
 
     // ******************************************************
@@ -102,6 +125,7 @@ void notmain(void) {
     // protection: same as device.
     // memory rules: uncached access.
     pin_t kern = pin_mk_global(dom_kern, no_user, MEM_uncached);
+    pin_t heap = pin_mk_global(dom_heap, no_user, MEM_uncached);
 
     // Q1: if you uncomment this, what happens / why?
     // kern = pin_mk_global(dom_kern, perm_ro_priv, MEM_uncached);
@@ -113,7 +137,7 @@ void notmain(void) {
     // 1mb sections.  you can fix this as an extension.  
     // very useful!
     pin_mmu_sec(idx++, 0, 0, kern);                    // tlb 3
-    pin_mmu_sec(idx++, OneMB, OneMB, kern);            // tlb 4
+    pin_mmu_sec(idx++, OneMB, OneMB, heap);            // tlb 4
 
     // now map kernel stack (or nothing will work)
     uint32_t kern_stack = STACK_ADDR-OneMB;
@@ -131,7 +155,7 @@ void notmain(void) {
     // b4-42: give permissions for all domains.
 
     // Q3: if you set this to ~0, what happens w.r.t. Q1?
-    staff_domain_access_ctrl_set(DOM_client << dom_kern*2); 
+    staff_domain_access_ctrl_set(DOM_client << dom_kern*2 | DOM_no_access << dom_heap*2);
 
     // set address space id, page table, and pid.
     // note:
@@ -168,19 +192,24 @@ void notmain(void) {
     // just like last lab.  setup a data abort handler.
     full_except_install(0);
     full_except_set_data_abort(fault_handler);
+    full_except_set_prefetch(prefetch_fault_handler);
 
     // the address we will write to (2MB) we know this is not mapped.
-    illegal_addr = OneMB + OneMB;
+    illegal_addr = OneMB + (OneMB >> 2);
 
     // this <PUT32> should "work" since vm is off.
-    assert(!mmu_is_enabled());
-    PUT32(illegal_addr, 0xdeadbeef);
-    trace("we wrote without vm: got %x\n", GET32(illegal_addr));
-    assert(GET32(illegal_addr) == 0xdeadbeef);
 
     // this should fault.
     staff_mmu_enable();
     assert(mmu_is_enabled());
-    PUT32(illegal_addr, 0xdeadbeef);
-    panic("should not reach here\n");
+    GET32(illegal_addr);
+    staff_domain_access_ctrl_set(DOM_client << dom_kern*2 | DOM_no_access << dom_heap*2);
+    PUT32(illegal_addr, 0x12345678);
+    staff_domain_access_ctrl_set(DOM_client << dom_kern*2 | DOM_no_access << dom_heap*2);
+    
+    illegal_addr += 0x4;
+
+    void (*fn)(void) = (void*)illegal_addr;
+    fn();
+    panic("*should* get here\n");
 }

@@ -10,7 +10,7 @@ void notmain(void) {
     // map the heap: for lab cksums must be at 0x100000.
     kmalloc_init_set_start((void*)OneMB, OneMB);
 
-    staff_pin_mmu_init(~0);
+    pin_mmu_init(~0);
 
     enum { 
         dom_kern = 1, // domain id for kernel
@@ -62,7 +62,7 @@ void notmain(void) {
     trace("about to enable\n");
 
     lockdown_print_entries("about to turn on first time");
-    staff_pin_mmu_switch(0,ASID1);
+    pin_mmu_switch(0,ASID1);
     pin_mmu_enable();
 
     // staff_mmu_on_first_time(1, null_pt);

@@ -15,7 +15,7 @@ void notmain(void) {
     uint32_t d = (DOM_client << dom_kern*2)
                 |(DOM_client << dom_user*2);
 
-    staff_pin_mmu_init(d);
+    pin_mmu_init(d);
 
 
     // see 3-151 for table, or B4-9
@@ -65,7 +65,7 @@ void notmain(void) {
 
     lockdown_print_entries("about to turn on first time");
 
-    staff_pin_mmu_switch(0,ASID1);
+    pin_mmu_switch(0,ASID1);
     pin_mmu_enable();
 
     assert(mmu_is_enabled());
@@ -86,8 +86,8 @@ void notmain(void) {
 
     lockdown_print_entries("about to turn on");
 
-    staff_pin_mmu_switch(0,ASID2);
-    staff_mmu_enable();
+    pin_mmu_switch(0,ASID2);
+    pin_mmu_enable();
 
     x = GET32(user_addr);
     trace("asid 2 = got: %x\n", x);
