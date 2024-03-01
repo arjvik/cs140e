@@ -4,6 +4,12 @@ PROGS += tests/1-test-basic.c
 PROGS += tests/1-test-setup.c
 PROGS += tests/1-test-two-addr.c
 PROGS += tests/2-test-procmap.c
+PROGS += tests/4-test-vm-cache-mgmt.c
+
+# PROGS = tests/4-test-domain-fault.c
+# PROGS = tests/5-caching.c
+
+
 
 O = $(CS140E_2024_PATH)/libpi
 STAFF_OBJS += $(O)/staff-objs/staff-full-except.o
@@ -21,9 +27,9 @@ COMMON_SRC += mmu-helpers.c
 COMMON_SRC += mmu.c
 
 # make sure can drop in staff.
-STAFF_OBJS += staff-mmu-asm.o  
-STAFF_OBJS += staff-mmu.o  
-STAFF_OBJS += staff-pt-vm.o  
+# STAFF_OBJS += staff-mmu-asm.o
+# STAFF_OBJS += staff-mmu.o
+# STAFF_OBJS += staff-pt-vm.o  
 
 #COMMON_SRC += staff-mmu-asm.S 
 #COMMON_SRC += staff-mmu-except.c 

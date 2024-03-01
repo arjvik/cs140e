@@ -14,7 +14,8 @@ vm_pt_t *vm_pt_alloc(unsigned n) {
     unsigned nbytes = 4096 * sizeof *pt;
 
     // allocate pt with n entries.
-    pt = staff_vm_pt_alloc(n);
+    // pt = staff_vm_pt_alloc(n);
+    pt = kmalloc_aligned(nbytes, 1<<14);
 
     demand(is_aligned_ptr(pt, 1<<14), must be 14-bit aligned!);
     return pt;
@@ -71,9 +72,25 @@ vm_map_sec(vm_pt_t *pt, uint32_t va, uint32_t pa, pin_t attr)
     unsigned index = va >> 20;
     assert(index < PT_LEVEL1_N);
 
-    vm_pte_t *pte = 0;
-    return staff_vm_map_sec(pt,va,pa,attr);
+    vm_pte_t *pte = &pt[index];
+    // return staff_vm_map_sec(pt,va,pa,attr);
 
+    *pte = (vm_pte_t) {
+        .tag = 0b10,
+        .B = attr.mem_attr & 0b1,
+        .C = (attr.mem_attr >> 1) & 0b1,
+        .XN = 0,
+        .domain = attr.dom,
+        .IMP = 0,
+        .AP = attr.AP_perm & 0b11,
+        .TEX = attr.mem_attr >> 2,
+        .APX = attr.AP_perm >> 2,
+        .S = 0,
+        .nG = !attr.G,
+        .super = 0,
+        ._sbz1 = 0,
+        .sec_base_addr = pa >> 20
+    };
 
     if(verbose_p)
         vm_pte_print(pt,pte);
@@ -83,8 +100,10 @@ vm_map_sec(vm_pt_t *pt, uint32_t va, uint32_t pa, pin_t attr)
 
 // lookup 32-bit address va in pt and return the pte
 // if it exists, 0 otherwise.
-vm_pte_t * vm_lookup(vm_pt_t *pt, uint32_t va) {
-    return staff_vm_lookup(pt,va);
+vm_pte_t *vm_lookup(vm_pt_t *pt, uint32_t va) {
+    // return staff_vm_lookup(pt,va);
+    vm_pte_t *x = &pt[va >> 20];
+    return x->tag ? x : 0;
 }
 
 // manually translate <va> in page table <pt>
@@ -94,7 +113,13 @@ vm_pte_t * vm_lookup(vm_pt_t *pt, uint32_t va) {
 //
 // NOTE: we can't just return the result b/c page 0 could be mapped.
 vm_pte_t *vm_xlate(uint32_t *pa, vm_pt_t *pt, uint32_t va) {
-    return staff_vm_xlate(pa,pt,va);
+    // return staff_vm_xlate(pa,pt,va);
+    vm_pte_t *x = &pt[va >> 20];
+    if (x->tag) {
+        *pa = (x->sec_base_addr << 20) | (va & ((1 << 20) - 1));
+        return x;
+    }
+    return 0;
 }
 
 // compute the default attribute for each type.
@@ -125,10 +150,67 @@ vm_pt_t *vm_map_kernel(procmap_t *p, int enable_p) {
     //    shouldn't matter since kernel is global.
     enum { kern_asid = 1, kern_pid = 0x140e };
 
-    vm_pt_t *pt = 0;
+    vm_mmu_init(dom_perm(p->dom_ids, DOM_client));
+    
+    vm_pt_t *pt = vm_pt_alloc(PT_LEVEL1_N);
+    
+    for (unsigned i = 0; i < p->n; i++) {
+        pr_ent_t *e = &p->map[i];
+        demand(e->nbytes == OneMB, "nbytes=%d\n", e->nbytes);
+        pin_t g = attr_mk(e);
+        vm_map_sec(pt, e->addr, e->addr, g);
+    }
 
-    return staff_vm_map_kernel(p,enable_p);
+    vm_mmu_switch(pt, kern_pid, kern_asid);
+    // mmu_set_ctx(kern_pid, kern_asid, pt); // does the same thing
+    
+    if (enable_p)
+        mmu_enable();
+    // return staff_vm_map_kernel(p,enable_p);
 
     assert(pt);
     return pt;
 }
+
+// static inline void procmap_pin(procmap_t *p) {
+//     for(unsigned i = 0; i < p->n; i++) {
+//         pr_ent_t *e = &p->map[i];
+//         demand(e->nbytes == MB, "nbytes=%d\n", e->nbytes);
+
+//         pin_t g;
+//         switch(e->type) {
+//         case MEM_DEVICE:
+//             g = pin_mk_device(e->dom);
+//             break;
+//         case MEM_RW:
+//             // currently everything is uncached.
+//             g = pin_mk_global(e->dom, perm_rw_priv, MEM_uncached);
+//             break;
+//         case MEM_RO: panic("not handling\n");
+//         default: panic("unknown type: %d\n", e->type);
+//         }
+//         pin_mmu_sec(i, e->addr, e->addr, g);
+//     }
+// }
+
+// static inline void procmap_pin_on(procmap_t *p) {
+//     // compute all the domain permissions.
+//     uint32_t d = dom_perm(p->dom_ids, DOM_client);
+
+//     pin_mmu_init(d);
+//     procmap_pin(p);
+
+//     pin_debug("about to turn on mmu\n");
+
+//     // setup.
+//     pin_mmu_switch(0,1);
+//     pin_mmu_enable();
+
+//     assert(mmu_is_enabled());
+//     pin_debug("enabled!\n");
+
+//     // can only check this after MMU is on.
+//     pin_debug("going to check entries are pinned\n");
+//     for(unsigned i = 0; i < p->n; i++)
+//         pin_check_exists(p->map[i].addr);
+// }

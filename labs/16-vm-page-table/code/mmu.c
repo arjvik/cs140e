@@ -12,6 +12,8 @@ int mmu_is_enabled(void) {
     return cp15_ctrl_reg1_rd().MMU_enabled != 0;
 }
 
+void mmu_disable_set_asm(cp15_ctrl_reg1_t c);
+
 // disable the mmu by setting control register 1
 // to <c:32>.
 // 
@@ -24,7 +26,7 @@ void mmu_disable_set(cp15_ctrl_reg1_t c) {
     // record if dcache on.
     uint32_t cache_on_p = c.C_unified_enable;
 
-    staff_mmu_disable_set_asm(c);
+    mmu_disable_set_asm(c);
 
     // re-enable if it was on.
     if(cache_on_p) {
@@ -44,13 +46,15 @@ void mmu_disable(void) {
     mmu_disable_set(c);
 }
 
+void mmu_enable_set_asm(cp15_ctrl_reg1_t c);
+
 // enable the mmu by setting control reg 1 to
 // <c>.   we start in C so we can do assertions
 // and then call out to the assembly for the 
 // real work (you'll write this code next time).
 void mmu_enable_set(cp15_ctrl_reg1_t c) {
     assert(c.MMU_enabled);
-    staff_mmu_enable_set_asm(c);
+    mmu_enable_set_asm(c);
 }
 
 // enable mmu by flipping enable bit.
@@ -61,14 +65,17 @@ void mmu_enable(void) {
     mmu_enable_set(c);
 }
 
+void cp15_set_procid_ttbr0(uint32_t proc_and_asid, fld_t *pt);
+
 // C end of this: does sanity checking then calls asm.
 void set_procid_ttbr0(unsigned pid, unsigned asid, fld_t *pt) {
     assert((pid >> 24) == 0);
     assert(pid > 64);
     assert(asid < 64 && asid);
-    staff_cp15_set_procid_ttbr0(pid << 8 | asid, pt);
+    cp15_set_procid_ttbr0(pid << 8 | asid, pt);
 }
 
+void mmu_reset(void);
 
 // set so that we use armv6 memory.
 // this should be wrapped up neater.  broken down so can replace 
@@ -77,30 +84,36 @@ void set_procid_ttbr0(unsigned pid, unsigned asid, fld_t *pt) {
 //  2. specify armv6 (no subpages).
 //  3. check that the coprocessor write succeeded.
 void mmu_init(void) { 
-    staff_mmu_init();
-    return;
+    // staff_mmu_init();
+    // return;
 
     // reset the MMU state: you will implement next lab
-    staff_mmu_reset();
+    mmu_reset();
 
     // trivial: RMW the xp bit in control reg 1.
     // leave mmu disabled.
-    unimplemented();
+    // unimplemented();
+    struct control_reg1 c1 = cp15_ctrl_reg1_rd();
+    c1.XP_pt = 1;
+    cp15_ctrl_reg1_wr(c1);
 
     // make sure write succeeded.
-    struct control_reg1 c1 = cp15_ctrl_reg1_rd();
+    c1 = cp15_ctrl_reg1_rd();
     assert(c1.XP_pt);
     assert(!c1.MMU_enabled);
 }
 
+uint32_t domain_access_ctrl_get_asm(void);
+void domain_access_ctrl_set_asm(uint32_t r);
+
 // read and return the domain access control register
 uint32_t domain_access_ctrl_get(void) {
-    return staff_domain_access_ctrl_get();
+    return domain_access_ctrl_get_asm();
 }
 
 // b4-42
 // set domain access control register to <r>
 void domain_access_ctrl_set(uint32_t r) {
-    staff_domain_access_ctrl_set(r);
+    domain_access_ctrl_set_asm(r);
     assert(domain_access_ctrl_get() == r);
 }

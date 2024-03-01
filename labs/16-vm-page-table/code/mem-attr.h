@@ -97,6 +97,8 @@ typedef enum {
     // write through no alloc
     MEM_wt_noalloc =  TEX_C_B(    0b000,  1, 0),  
 
+    MEM_cached = TEX_C_B(0b001, 1, 1),
+
     // NOTE: missing a lot!
 } mem_attr_t;
 
