@@ -80,7 +80,7 @@ static inline void ce_hi(uint8_t ce) {
 }
 
 // initialize the NRF: [extension: pass in a channel]
-nrf_t *nrf_init(nrf_conf_t c, uint32_t rxaddr, unsigned acked_p) {
+nrf_t *dontuse_nrf_init(nrf_conf_t c, uint32_t rxaddr, unsigned acked_p) {
     nrf_t *n = staff_nrf_init(c, rxaddr, acked_p);
 
     // start of initialization: go through and handle no-ack first,
@@ -105,7 +105,10 @@ nrf_t *nrf_init(nrf_conf_t c, uint32_t rxaddr, unsigned acked_p) {
     nrf_put8_chk(n, NRF_EN_RXADDR, 0);
 
     if(!acked_p) {
+
+        assert(false, "I only support ack for now");
         // reg1: disable retran.
+
         // reg2: enable pipe 1.
 
 
@@ -116,6 +119,7 @@ nrf_t *nrf_init(nrf_conf_t c, uint32_t rxaddr, unsigned acked_p) {
     } else {
         // reg=1: p57
         // both retran pipe(0) and pipe 1 have to be ENAA_P0 = 1 (p75)
+        nrf_put8_chk(n, NRF_)
 
         // reg=2: p 57, enable pipes --- always enable pipe 0 for retran.
 

@@ -335,8 +335,7 @@ kbytes_per_sec(unsigned tot_bytes, unsigned tot_usec) {
 
 #include "pretty-time.h"
 void nrf_stat_print(nrf_t *nic, const char *fmt, ...) {
-    uint32_t start = nic->start_usec;
-    uint32_t tot_usec = timer_get_usec() - start;
+    uint32_t tot_usec = nic->start_usec;
 
     output("NRF:");
     va_list args;
@@ -345,7 +344,8 @@ void nrf_stat_print(nrf_t *nic, const char *fmt, ...) {
     va_end(args);
     output("\n");
     nrf_output("\ttotal time= [");
-    pretty_print_usec(start);
+    // pretty_print_usec(start + timer_get_usec());
+    printk("%dusec", tot_usec);
     output("]\n");
 
     

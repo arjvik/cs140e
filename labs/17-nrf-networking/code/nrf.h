@@ -136,7 +136,7 @@ void nrf_conf_print(const char *msg, nrf_conf_t *c);
 // trivial stat stuff so we can track bandwidth,
 // total retransmissions, loss, etc.
 static inline void nrf_stat_start(nrf_t *nic) {
-    nic->start_usec = timer_get_usec();
+    nic->start_usec = 0;
     nic->tot_sent_msgs = 0;
     nic->tot_sent_bytes = 0;
     nic->tot_retrans = 0;
