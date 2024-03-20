@@ -23,12 +23,6 @@ SECTIONS
             . = ALIGN(4);
             __data_end__ = .;
     }
-    .extratext 0x108000 : {
-        __extra_code_start__ = .;
-        *(.extratext*)
-        __extra_code_end__ = .;
-        . = ALIGN(8);
-    }
     .bss : {
         . = ALIGN(4);
         __bss_start__ = .;
@@ -36,6 +30,13 @@ SECTIONS
         *(COMMON)
         . = ALIGN(8);
         __bss_end__ = .;
+        . = ALIGN(8);
+    }
+    .extratext : {
+        . = ALIGN(0x10000); /* 10 4k sectors */
+        __extra_code_start__ = .;
+        *(.extratext*)
+        __extra_code_end__ = .;
         . = ALIGN(8);
         __prog_end__ = .;
         __heap_start__ = .;

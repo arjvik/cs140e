@@ -2,13 +2,15 @@
 #include "rpi.h"
 #include "parallel.h"
 #include "full-except.h"
-#include "../../16-vm-page-table/code/pt-vm.h"
-#include "../../16-vm-page-table/code/mem-attr.h"
+#include "pt-vm.h"
+#include "mem-attr.h"
+#include "vm-4k-pages.h"
 
 #define ONE_MB (1024*1024)
+#define FOUR_K (4*1024)
 
 vm_pt_t *pt;
-pin_t dev, kern;
+pin_t dev, kern, kern4k;
 
 void test(void) __attribute__((section(".extratext")));
 void test(void) {
@@ -28,14 +30,12 @@ static void fault_handler(regs_t *r) {
     printk("Data fault on address=%x\n", fault_addr);
 
 
-    vm_map_sec(pt, 2*ONE_MB, 2*ONE_MB, kern);
+    // vm_map_sec(pt, 2*ONE_MB, 2*ONE_MB, kern);
+    vm_map_sec_4k(pt, 2*ONE_MB+FOUR_K, 2*ONE_MB+FOUR_K, kern4k);
     staff_mmu_sync_pte_mods();
 }
 
 void notmain() {
-
-    test();
-
     full_except_install(0);
     full_except_set_data_abort(fault_handler);
 
@@ -44,8 +44,9 @@ void notmain() {
     mmu_init();
     domain_access_ctrl_set(~0);
 
-    dev  = pin_mk_global(0, 0b011, MEM_device);
-    kern = pin_mk_global(0, 0b011, MEM_uncached);
+    dev    = pin_mk_global(0, 0b011, MEM_device);
+    kern   = pin_mk_global(0, 0b011, MEM_uncached);
+    kern4k = pin_mk_global_4k(0, 0b011, MEM_uncached);
         
     // all the device memory: identity map
     vm_map_sec(pt, 0x20000000, 0x20000000, dev);
@@ -53,7 +54,8 @@ void notmain() {
     vm_map_sec(pt, 0x20200000, 0x20200000, dev);
     // map first two MB for the kernel
     vm_map_sec(pt, 0, 0, kern);
-    vm_map_sec(pt, ONE_MB, ONE_MB, kern);
+    vm_map_sec(pt, ONE_MB, ONE_MB, kern); // kmalloc heap, page tables
+    vm_map_sec_4k(pt, 2*ONE_MB, 2*ONE_MB, kern4k);
     // kernel stack, interrupt stack
     vm_map_sec(pt, STACK_ADDR - ONE_MB, STACK_ADDR - ONE_MB, kern);
     vm_map_sec(pt, INT_STACK_ADDR - ONE_MB, INT_STACK_ADDR - ONE_MB, kern);
@@ -63,8 +65,8 @@ void notmain() {
 
     assert(mmu_is_enabled());
     trace("MMU is on and working!\n");
-    PUT32(2*ONE_MB, 0x12345678);
-    trace("GET32(%x)=%x\n", 2*ONE_MB, GET32(2*ONE_MB));
+    PUT32(2*ONE_MB+FOUR_K, 0x12345678);
+    trace("GET32(%x)=%x\n", 2*ONE_MB+FOUR_K, GET32(2*ONE_MB+FOUR_K));
 
     test();
 }
