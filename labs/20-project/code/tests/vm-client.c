@@ -7,6 +7,14 @@
 
 #define ONE_MB (1024*1024)
 
+vm_pt_t *pt;
+pin_t dev, kern;
+
+void test(void) __attribute__((section(".extratext")));
+void test(void) {
+    printk("hello from test\n");
+}
+
 static void fault_handler(regs_t *r) {
     uint32_t fault_addr;
     uint32_t dfsr;
@@ -17,18 +25,27 @@ static void fault_handler(regs_t *r) {
     // ~3-66
     asm volatile("MRC p15, 0, %0, c5, c0, 0" : "=r" (dfsr));
 
-    printk("Data fault on address=%x", fault_addr);
+    printk("Data fault on address=%x\n", fault_addr);
+
+
+    vm_map_sec(pt, 2*ONE_MB, 2*ONE_MB, kern);
+    staff_mmu_sync_pte_mods();
 }
 
 void notmain() {
+
+    test();
+
     full_except_install(0);
     full_except_set_data_abort(fault_handler);
-    vm_pt_t *pt = (vm_pt_t *) 0x7000000;
+
+    kmalloc_init();
+    pt = kmalloc_aligned(4096*4, 1<<14);
     mmu_init();
     domain_access_ctrl_set(~0);
 
-    pin_t dev  = pin_mk_global(0, 0b011, MEM_device),
-          kern = pin_mk_global(0, 0b011, MEM_uncached);
+    dev  = pin_mk_global(0, 0b011, MEM_device);
+    kern = pin_mk_global(0, 0b011, MEM_uncached);
         
     // all the device memory: identity map
     vm_map_sec(pt, 0x20000000, 0x20000000, dev);
@@ -46,4 +63,8 @@ void notmain() {
 
     assert(mmu_is_enabled());
     trace("MMU is on and working!\n");
+    PUT32(2*ONE_MB, 0x12345678);
+    trace("GET32(%x)=%x\n", 2*ONE_MB, GET32(2*ONE_MB));
+
+    test();
 }

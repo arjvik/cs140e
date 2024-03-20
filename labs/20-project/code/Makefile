@@ -1,6 +1,8 @@
 COMMON_SRC = parallel.c staff-mmu.c pt-vm.c
 PROGS = $(wildcard tests/*.c)
 
+MEMMAP = ./memmap.split
+
 RUN=0
 
 STAFF_OBJS += $(CS140E_2024_PATH)/labs/16-vm-page-table/code/staff-pt-vm.o
