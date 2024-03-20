@@ -1,8 +1,15 @@
-COMMON_SRC = parallel.c
-PROGS = parallel-one.c parallel-two.c
+COMMON_SRC = parallel.c staff-mmu.c pt-vm.c
+PROGS = $(wildcard tests/*.c)
 
-# uncomment if you want it to automatically run.
 RUN=0
+
+STAFF_OBJS += $(CS140E_2024_PATH)/labs/16-vm-page-table/code/staff-pt-vm.o
+STAFF_OBJS += $(CS140E_2024_PATH)/labs/16-vm-page-table/code/staff-mmu.o
+STAFF_OBJS += $(CS140E_2024_PATH)/labs/16-vm-page-table/code/staff-mmu-asm.o
+STAFF_OBJS += $(CS140E_2024_PATH)/libpi/staff-objs/staff-full-except-asm.o
+STAFF_OBJS += $(CS140E_2024_PATH)/libpi/staff-objs/staff-full-except.o
+STAFF_OBJS += $(CS140E_2024_PATH)/libpi/staff-objs/staff-switchto-asm.o
+
 
 LIBS += $(CS140E_2024_PATH)/lib/libgcc.a
 

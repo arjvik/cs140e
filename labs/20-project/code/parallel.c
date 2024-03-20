@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stddef.h>
 #include "rpi.h"
 #include "parallel.h"
 
@@ -31,9 +32,25 @@ uint8_t parallel_read_byte(void) {
     gpio_write(par_listening_pin, !last);
     while (gpio_read(par_writing_pin) == last)
         ;
+    dev_barrier();
     last = !last;
     uint32_t value = (get32((uint32_t *) gpio_lev0 + (par_pins_start/32)) >> par_pins_start) & 0xFF;
     return value;
+}
+
+uint32_t parallel_read_32(void) {
+    uint32_t x = parallel_read_byte();
+    x |= parallel_read_byte() << 8;
+    x |= parallel_read_byte() << 16;
+    x |= parallel_read_byte() << 24;
+    return x;
+}
+
+void parallel_read_n(uint32_t *data, size_t n) {
+    assert((n & 0b11) == 0);
+    for (size_t i = 0; i < (n >> 2); i++) {
+        data[i] = parallel_read_32();
+    }
 }
 
 void parallel_setup_write(void) {
@@ -55,5 +72,20 @@ void parallel_write_byte(uint8_t byte) {
     put32((uint32_t *) gpio_set0 + (par_pins_start/32), set);
     put32((uint32_t *) gpio_clr0 + (par_pins_start/32), clr);
     last = !last;
+    dev_barrier();
     gpio_write(par_writing_pin, last);
+}
+
+void parallel_write_32(uint32_t dword) {
+    parallel_write_byte((uint8_t) dword);
+    parallel_write_byte((uint8_t) (dword >> 8));
+    parallel_write_byte((uint8_t) (dword >> 16));
+    parallel_write_byte((uint8_t) (dword >> 24));
+}
+
+void parallel_write_n(const uint32_t *data, size_t n) {
+    assert((n & 0b11) == 0);
+    for (size_t i = 0; i < (n >> 2); i++) {
+        parallel_write_32(data[i]);
+    }
 }
