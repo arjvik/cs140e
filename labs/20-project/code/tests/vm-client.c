@@ -88,5 +88,9 @@ void notmain() {
     // void (*mytest)(void) = (void*)0xe000;
     // mytest();
     // BRANCHTO(0xe000);
-    ((void (*)(void)) 0x900000)();
+    // ((void (*)(void)) 0x900000)();
+    parallel_setup_read();
+    regs_t r;
+    parallel_read_n(r.regs, sizeof(r));
+    switchto(&r);
 }

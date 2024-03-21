@@ -50,10 +50,63 @@ static void prefetch_fault_handler(regs_t *r) {
     staff_mmu_sync_pte_mods();    
 }
 
+void myswitchto(regs_t *r) {
+    asm volatile(
+        "ldm r0, {r4-r11,lr}"
+    ::: "memory");
+    prefetch_flush();
+}
+
+static int syscall_handler(regs_t *r) {
+    printk("SWI Interrupt at %x\n", r->regs[REGS_PC] - 4);
+
+    r->regs[13] += sizeof(*r);
+    r->regs[14] = (uint32_t) clean_reboot;
+
+    printk("r0: %x ", r->regs[0]);
+    printk("r1: %x ", r->regs[1]);
+    printk("r2: %x ", r->regs[2]);
+    printk("r3: %x\n", r->regs[3]);
+    printk("r4: %x ", r->regs[4]);
+    printk("r5: %x", r->regs[5]);
+    printk("r6: %x", r->regs[6]);
+    printk("r7: %x\n", r->regs[7]);
+    printk("r8: %x ", r->regs[8]);
+    printk("r9: %x ", r->regs[9]);
+    printk("r10: %x ", r->regs[10]);
+    printk("r11: %x\n", r->regs[11]);
+    printk("r12: %x ", r->regs[12]);
+    printk("sp: %x ", r->regs[13]);
+    printk("lr: %x ", r->regs[14]);
+    printk("pc: %x\n", r->regs[15]);
+    
+    parallel_setup_write();
+    parallel_write_n(r->regs, sizeof(*r));
+
+    asm volatile("add sp, sp, #68");
+
+    printk("Ready.\n");
+    while (true) {
+        parallel_setup_read();
+        uint32_t *addr = (uint32_t *) parallel_read_32();
+        printk("Sending %x over the wire...", addr);
+        parallel_setup_write();
+        parallel_write_n(addr, FOUR_K);
+        printk("done.\n");
+    }
+    return 0;
+}
+
+// int syscall_full_except(regs_t *r, uint32_t spsr, uint32_t pc) {
+//     printk("syscall_full_except\n");
+//     return 0;
+// }
+
 void notmain() {
     full_except_install(0);
     full_except_set_data_abort(fault_handler);
     full_except_set_prefetch(prefetch_fault_handler);
+    full_except_set_syscall(syscall_handler);
 
     kmalloc_init();
     pt = kmalloc_aligned(4096*4, 1<<14);
@@ -97,15 +150,6 @@ void notmain() {
 
     printk("Loaded hello-f.bin!\n");
 
-    // ((void (*)(void)) 0x900000)();
-
-    printk("Ready.\n");
-    while (true) {
-        parallel_setup_read();
-        uint32_t *addr = (uint32_t *) parallel_read_32();
-        printk("Sending %x over the wire...", addr);
-        parallel_setup_write();
-        parallel_write_n(addr, FOUR_K);
-        printk("done.\n");
-    }
+    // Exec hello-f.bin
+    ((void (*)(void)) 0x900000)();
 }
