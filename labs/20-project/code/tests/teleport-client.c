@@ -14,24 +14,27 @@ pin_t dev, kern, kern4k;
 
 static void fault_handler(regs_t *r) {
     uint32_t fault_addr;
+    // uint32_t dfsr;
 
+    // b4-44
     asm volatile("MRC p15, 0, %0, c6, c0, 0" : "=r" (fault_addr));
+
+    // // ~3-66
+    // asm volatile("MRC p15, 0, %0, c5, c0, 0" : "=r" (dfsr));
 
     printk("Data fault on address=%x\n", fault_addr);
 
-    uint32_t *page_base = (uint32_t *) (fault_addr & ~(((uint32_t) FOUR_K) - 1));
-    vm_map_sec_4k(pt, (uint32_t) page_base, (uint32_t) page_base, kern4k);
-    staff_mmu_sync_pte_mods();
 
-    parallel_setup_write();
-    parallel_write_32((uint32_t) page_base);
-    parallel_setup_read();
-    parallel_read_n(page_base, FOUR_K);
+    // vm_map_sec(pt, 2*ONE_MB, 2*ONE_MB, kern);
+    vm_map_sec_4k(pt, 2*ONE_MB+FOUR_K, 2*ONE_MB+FOUR_K, kern4k);
+    staff_mmu_sync_pte_mods();
 }
 
 static void prefetch_fault_handler(regs_t *r) {
     uint32_t fault_addr;
+    uint32_t dfsr;
 
+    // b4-44
     asm volatile("MRC p15, 0, %0, c6, c0, 2" : "=r" (fault_addr));
 
     printk("Instruction fault on address=%x\n", fault_addr);
@@ -81,6 +84,11 @@ void notmain() {
     assert(mmu_is_enabled());
     trace("MMU is on and working!\n");
 
+    // test();
+    // void (*mytest)(void) = (void*)0xe000;
+    // mytest();
+    // BRANCHTO(0xe000);
+    // ((void (*)(void)) 0x900000)();
     parallel_setup_read();
     regs_t r;
     parallel_read_n(r.regs, sizeof(r));

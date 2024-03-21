@@ -14,47 +14,20 @@
 vm_pt_t *pt;
 pin_t dev, kern, kern4k;
 
-// void test(void) __attribute__((section(".extratext")));
-// void test(void) {
-//     printk("hello from test\n");
-// }
-
 static void fault_handler(regs_t *r) {
     uint32_t fault_addr;
-    // uint32_t dfsr;
 
-    // b4-44
     asm volatile("MRC p15, 0, %0, c6, c0, 0" : "=r" (fault_addr));
 
-    // // ~3-66
-    // asm volatile("MRC p15, 0, %0, c5, c0, 0" : "=r" (dfsr));
-
     panic("Data fault on address=%x\n", fault_addr);
-
-
-    // vm_map_sec(pt, 2*ONE_MB, 2*ONE_MB, kern);
-    vm_map_sec_4k(pt, 2*ONE_MB+FOUR_K, 2*ONE_MB+FOUR_K, kern4k);
-    staff_mmu_sync_pte_mods();
 }
 
 static void prefetch_fault_handler(regs_t *r) {
     uint32_t fault_addr;
-    uint32_t dfsr;
 
-    // b4-44
     asm volatile("MRC p15, 0, %0, c6, c0, 0" : "=r" (fault_addr));
 
     panic("Instruction fault on address=%x\n", fault_addr);
-
-    vm_map_sec_4k(pt, 0xe000, 0xe000, kern4k);
-    staff_mmu_sync_pte_mods();    
-}
-
-void myswitchto(regs_t *r) {
-    asm volatile(
-        "ldm r0, {r4-r11,lr}"
-    ::: "memory");
-    prefetch_flush();
 }
 
 static int syscall_handler(regs_t *r) {
@@ -96,11 +69,6 @@ static int syscall_handler(regs_t *r) {
     }
     return 0;
 }
-
-// int syscall_full_except(regs_t *r, uint32_t spsr, uint32_t pc) {
-//     printk("syscall_full_except\n");
-//     return 0;
-// }
 
 void notmain() {
     full_except_install(0);
