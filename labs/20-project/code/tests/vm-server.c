@@ -6,6 +6,7 @@
 #include "pt-vm.h"
 #include "mem-attr.h"
 #include "vm-4k-pages.h"
+#include "fat32.h"
 
 #define ONE_MB (1024*1024)
 #define FOUR_K (4*1024)
@@ -13,10 +14,10 @@
 vm_pt_t *pt;
 pin_t dev, kern, kern4k;
 
-void test(void) __attribute__((section(".extratext")));
-void test(void) {
-    printk("hello from test\n");
-}
+// void test(void) __attribute__((section(".extratext")));
+// void test(void) {
+//     printk("hello from test\n");
+// }
 
 static void fault_handler(regs_t *r) {
     uint32_t fault_addr;
@@ -67,10 +68,11 @@ void notmain() {
     vm_map_sec(pt, 0x20000000, 0x20000000, dev);
     vm_map_sec(pt, 0x20100000, 0x20100000, dev);
     vm_map_sec(pt, 0x20200000, 0x20200000, dev);
+    vm_map_sec(pt, 0x20300000, 0x20300000, dev);
     // map first two MB for the kernel
-    // vm_map_sec(pt, 0, 0, kern);
-    for (unsigned i = 0; i < 0xe000; i += FOUR_K)
-        vm_map_sec_4k(pt, i, i, kern4k);
+    vm_map_sec(pt, 0, 0, kern);
+    // for (unsigned i = 0; i < 0xe000; i += FOUR_K)
+    //     vm_map_sec_4k(pt, i, i, kern4k);
     vm_map_sec(pt, ONE_MB, ONE_MB, kern); // kmalloc heap, page tables
     vm_map_sec_4k(pt, 2*ONE_MB, 2*ONE_MB, kern4k);
     // kernel stack, interrupt stack
@@ -85,8 +87,18 @@ void notmain() {
 
     // test();
 
-    vm_map_sec(pt, 0, 0, kern);
+    vm_map_sec(pt, 0x900000, 0x900000, kern);
     staff_mmu_sync_pte_mods();
+
+    fat32init();
+    struct fat32_directory_entry binary;
+    assert(findFile("hello-f.bin", 2, &binary));
+    readEntireFile((uint8_t *) 0x900000, binary);
+
+    printk("Loaded hello-f.bin!\n");
+
+    // ((void (*)(void)) 0x900000)();
+
     printk("Ready.\n");
     while (true) {
         parallel_setup_read();
