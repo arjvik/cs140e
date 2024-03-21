@@ -39,20 +39,14 @@ static void prefetch_fault_handler(regs_t *r) {
 
     printk("Instruction fault on address=%x\n", fault_addr);
 
-    vm_map_sec_4k(pt, 0xe000, 0xe000, kern4k);
+    uint32_t *page_base = (uint32_t *) (fault_addr & ~(((uint32_t) FOUR_K) - 1));
+    vm_map_sec_4k(pt, (uint32_t) page_base, (uint32_t) page_base, kern4k);
     staff_mmu_sync_pte_mods();
 
     parallel_setup_write();
-    uint32_t *page_base = (uint32_t *) (fault_addr & ~(((uint32_t) FOUR_K) - 1));
     parallel_write_32((uint32_t) page_base);
     parallel_setup_read();
     parallel_read_n(page_base, FOUR_K);
-    printk("Read instructions:\n%x %x %x %x\n%x %x %x %x\n%x %x %x %x\n%x %x %x %x\n%x %x %x %x\n",
-        page_base[0], page_base[1], page_base[2], page_base[3],
-        page_base[4], page_base[5], page_base[6], page_base[7],
-        page_base[8], page_base[9], page_base[10], page_base[11],
-        page_base[12], page_base[13], page_base[14], page_base[15],
-        page_base[16], page_base[17], page_base[18], page_base[19]);
 }
 
 void notmain() {
@@ -73,10 +67,11 @@ void notmain() {
     vm_map_sec(pt, 0x20000000, 0x20000000, dev);
     vm_map_sec(pt, 0x20100000, 0x20100000, dev);
     vm_map_sec(pt, 0x20200000, 0x20200000, dev);
+    vm_map_sec(pt, 0x20300000, 0x20300000, dev);
     // map first two MB for the kernel
-    // vm_map_sec(pt, 0, 0, kern);
-    for (unsigned i = 0; i < 0xe000; i += FOUR_K)
-        vm_map_sec_4k(pt, i, i, kern4k);
+    vm_map_sec(pt, 0, 0, kern);
+    // for (unsigned i = 0; i < 0xe000; i += FOUR_K)
+    //     vm_map_sec_4k(pt, i, i, kern4k);
     vm_map_sec(pt, ONE_MB, ONE_MB, kern); // kmalloc heap, page tables
     vm_map_sec_4k(pt, 2*ONE_MB, 2*ONE_MB, kern4k);
     // kernel stack, interrupt stack
@@ -92,5 +87,6 @@ void notmain() {
     // test();
     // void (*mytest)(void) = (void*)0xe000;
     // mytest();
-    BRANCHTO(0xe000);
+    // BRANCHTO(0xe000);
+    ((void (*)(void)) 0x900000)();
 }

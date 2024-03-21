@@ -1,7 +1,7 @@
-COMMON_SRC = parallel.c vm-4k-pages.c staff-mmu.c pt-vm.c
+COMMON_SRC = parallel.c vm-4k-pages.c emmc.c fat32.c staff-mmu.c pt-vm.c
 PROGS = $(wildcard tests/*.c)
 
-MEMMAP = ./memmap.split
+# MEMMAP = ./memmap.split
 
 RUN=0
 
