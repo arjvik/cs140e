@@ -19,13 +19,13 @@ void test(void) {
 
 static void fault_handler(regs_t *r) {
     uint32_t fault_addr;
-    uint32_t dfsr;
+    // uint32_t dfsr;
 
     // b4-44
     asm volatile("MRC p15, 0, %0, c6, c0, 0" : "=r" (fault_addr));
 
-    // ~3-66
-    asm volatile("MRC p15, 0, %0, c5, c0, 0" : "=r" (dfsr));
+    // // ~3-66
+    // asm volatile("MRC p15, 0, %0, c5, c0, 0" : "=r" (dfsr));
 
     printk("Data fault on address=%x\n", fault_addr);
 
@@ -35,9 +35,23 @@ static void fault_handler(regs_t *r) {
     staff_mmu_sync_pte_mods();
 }
 
+static void prefetch_fault_handler(regs_t *r) {
+    uint32_t fault_addr;
+    uint32_t dfsr;
+
+    // b4-44
+    asm volatile("MRC p15, 0, %0, c6, c0, 0" : "=r" (fault_addr));
+
+    printk("Instruction fault on address=%x\n", fault_addr);
+
+    vm_map_sec_4k(pt, 0xe000, 0xe000, kern4k);
+    staff_mmu_sync_pte_mods();    
+}
+
 void notmain() {
     full_except_install(0);
     full_except_set_data_abort(fault_handler);
+    full_except_set_prefetch(prefetch_fault_handler);
 
     kmalloc_init();
     pt = kmalloc_aligned(4096*4, 1<<14);
@@ -53,7 +67,9 @@ void notmain() {
     vm_map_sec(pt, 0x20100000, 0x20100000, dev);
     vm_map_sec(pt, 0x20200000, 0x20200000, dev);
     // map first two MB for the kernel
-    vm_map_sec(pt, 0, 0, kern);
+    // vm_map_sec(pt, 0, 0, kern);
+    for (unsigned i = 0; i < 0xe000; i += FOUR_K)
+        vm_map_sec_4k(pt, i, i, kern4k);
     vm_map_sec(pt, ONE_MB, ONE_MB, kern); // kmalloc heap, page tables
     vm_map_sec_4k(pt, 2*ONE_MB, 2*ONE_MB, kern4k);
     // kernel stack, interrupt stack

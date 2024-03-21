@@ -33,7 +33,7 @@ SECTIONS
         . = ALIGN(8);
     }
     .extratext : {
-        . = ALIGN(0x10000); /* 10 4k sectors */
+        . = ALIGN(0x1000); /* 4k sector */
         __extra_code_start__ = .;
         *(.extratext*)
         __extra_code_end__ = .;
