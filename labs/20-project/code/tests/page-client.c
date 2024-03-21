@@ -3,6 +3,7 @@
 #include "parallel.h"
 
 #define ONE_MB (1024*1024)
+#define FOUR_K (4*1024)
 
 void notmain() {
 
@@ -18,7 +19,7 @@ void notmain() {
 
     printk("TWO: Ready to receive.\n");
 
-    parallel_read_n((uint32_t *) 0x9100000, ONE_MB);
+    parallel_read_n((uint32_t *) 0x9100000, FOUR_K);
 
     unsigned end = timer_get_usec();
     printk("TWO: Took %d\n", (end - start) / 1000);

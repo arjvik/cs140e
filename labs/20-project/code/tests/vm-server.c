@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdbool.h>
 #include "rpi.h"
 #include "parallel.h"
 #include "full-except.h"
@@ -12,6 +13,11 @@
 vm_pt_t *pt;
 pin_t dev, kern, kern4k;
 
+void test(void) __attribute__((section(".extratext")));
+void test(void) {
+    printk("hello from test\n");
+}
+
 static void fault_handler(regs_t *r) {
     uint32_t fault_addr;
     // uint32_t dfsr;
@@ -22,7 +28,7 @@ static void fault_handler(regs_t *r) {
     // // ~3-66
     // asm volatile("MRC p15, 0, %0, c5, c0, 0" : "=r" (dfsr));
 
-    printk("Data fault on address=%x\n", fault_addr);
+    panic("Data fault on address=%x\n", fault_addr);
 
 
     // vm_map_sec(pt, 2*ONE_MB, 2*ONE_MB, kern);
@@ -35,24 +41,12 @@ static void prefetch_fault_handler(regs_t *r) {
     uint32_t dfsr;
 
     // b4-44
-    asm volatile("MRC p15, 0, %0, c6, c0, 2" : "=r" (fault_addr));
+    asm volatile("MRC p15, 0, %0, c6, c0, 0" : "=r" (fault_addr));
 
-    printk("Instruction fault on address=%x\n", fault_addr);
+    panic("Instruction fault on address=%x\n", fault_addr);
 
     vm_map_sec_4k(pt, 0xe000, 0xe000, kern4k);
-    staff_mmu_sync_pte_mods();
-
-    parallel_setup_write();
-    uint32_t *page_base = (uint32_t *) (fault_addr & ~(((uint32_t) FOUR_K) - 1));
-    parallel_write_32((uint32_t) page_base);
-    parallel_setup_read();
-    parallel_read_n(page_base, FOUR_K);
-    printk("Read instructions:\n%x %x %x %x\n%x %x %x %x\n%x %x %x %x\n%x %x %x %x\n%x %x %x %x\n",
-        page_base[0], page_base[1], page_base[2], page_base[3],
-        page_base[4], page_base[5], page_base[6], page_base[7],
-        page_base[8], page_base[9], page_base[10], page_base[11],
-        page_base[12], page_base[13], page_base[14], page_base[15],
-        page_base[16], page_base[17], page_base[18], page_base[19]);
+    staff_mmu_sync_pte_mods();    
 }
 
 void notmain() {
@@ -90,7 +84,16 @@ void notmain() {
     trace("MMU is on and working!\n");
 
     // test();
-    // void (*mytest)(void) = (void*)0xe000;
-    // mytest();
-    BRANCHTO(0xe000);
+
+    vm_map_sec(pt, 0, 0, kern);
+    staff_mmu_sync_pte_mods();
+    printk("Ready.\n");
+    while (true) {
+        parallel_setup_read();
+        uint32_t *addr = (uint32_t *) parallel_read_32();
+        printk("Sending %x over the wire...", addr);
+        parallel_setup_write();
+        parallel_write_n(addr, FOUR_K);
+        printk("done.\n");
+    }
 }

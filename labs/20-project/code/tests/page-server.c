@@ -3,6 +3,7 @@
 #include "parallel.h"
 
 #define ONE_MB (1024*1024)
+#define FOUR_K (4*1024)
 
 void fill_page(uint32_t *addr) {
     for (uint32_t i = 0; i < ONE_MB / sizeof(uint32_t); i++)
@@ -26,7 +27,7 @@ void notmain() {
     uint8_t *addr = (uint8_t *) parallel_read_32();
 
     parallel_setup_write();
-    parallel_write_n(page, ONE_MB);
+    parallel_write_n(page, FOUR_K);
 
 
     clean_reboot();
