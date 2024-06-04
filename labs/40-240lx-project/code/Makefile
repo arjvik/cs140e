@@ -1,4 +1,4 @@
-COMMON_SRC = staff-full-except.c full-except-asm.S emmc.c fat32-arjun.c
+COMMON_SRC = staff-full-except.c full-except-asm.S emmc.c fat32-arjun.c elf32.c syscall-handler.c
 
 # PROGS = syscall.c
 # PROGS = fat32-full-test.c

@@ -2,8 +2,6 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-// #include <assert.h>
-#define assert(x) if (!(x)) { panic("Assertion failed: %s\n", #x); }
 #include "fat32-arjun.h"
 
 #define ENTRY_CLUSTER(e) ((((uint32_t) (e).first_cluster_high) << 16) | ((uint32_t) (e).first_cluster_low))

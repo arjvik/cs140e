@@ -42,3 +42,20 @@ static inline int syscall3(int sysno, int arg1, int arg2, int arg3) {
     );
     return result;
 }
+
+static inline int syscall4(int sysno, int arg1, int arg2, int arg3, int arg4) {
+    int result;
+    asm volatile (
+        "mov r7, %1 \n"
+        "mov r0, %2 \n"
+        "mov r1, %3 \n"
+        "mov r2, %4 \n"
+        "mov r3, %5 \n"
+        "swi 0 \n"
+        "mov %0, r0 \n"
+        : "=r" (result)
+        : "r" (sysno), "r" (arg1), "r" (arg2), "r" (arg3), "r" (arg4)
+        : "r7", "r0", "r1", "r2", "r3"
+    );
+    return result;
+}
