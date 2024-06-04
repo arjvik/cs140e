@@ -14,7 +14,11 @@ void readSector(uint8_t *buffer, uint32_t sector) {
 }
 
 struct fat32_filesystem fat32init(int mbrPartition) {
-    emmc_init();
+    static bool emmc_init_complete = false;
+    if (!emmc_init_complete) {
+        emmc_init();
+        emmc_init_complete = true;
+    }
 
     uint8_t buffer[SECTOR];
     readSector(buffer, 0); // MBR    

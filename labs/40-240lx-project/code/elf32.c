@@ -27,13 +27,13 @@ void run_elf32(void *elf32_buffer, int argc, const char *argv[]) {
 
     for (unsigned i = 0; i < header->program_header_entry_count; i++) {
         struct elf32_program_header *program = (struct elf32_program_header *)(elf32_buffer + header->program_header_offset + i * header->program_header_entry_size);
-        // if (program->type != 1 && program->type != 7) continue;
+        if (program->type != 1 && program->type != 7) continue;
 
         if (program->virtual_address + program->memory_size > max_elf_address)
             max_elf_address = program->virtual_address + program->memory_size;
         
         if (program->virtual_address < (uint32_t)__prog_end__ && program->virtual_address + program->memory_size > (uint32_t)__code_start__)
-            panic("  !!! OVERLAPS with __code_start__=%x\n, __prog_end__=%x !!\n", __code_start__, __prog_end__);
+            panic("\n!!! OVERLAPS with __code_start__=%x, __prog_end__=%x\n  !!! !!! virtual_address=%x, virtual_end=%x\n", __code_start__, __prog_end__, program->virtual_address, program->virtual_address + program->memory_size);
         
         memcpy((void *)program->virtual_address, elf32_buffer + program->offset, program->file_size);
         memset((void *)(program->virtual_address + program->file_size), 0, program->memory_size - program->file_size);

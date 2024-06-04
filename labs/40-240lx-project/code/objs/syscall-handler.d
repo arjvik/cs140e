@@ -13,7 +13,8 @@ objs/syscall-handler.o: syscall-handler.c \
  /home/arjvik/Programming/c/cs140e-24win//libpi/include/cpsr-util.h \
  /home/arjvik/Programming/c/cs140e-24win//libpi/include/rpi-interrupts.h \
  /home/arjvik/Programming/c/cs140e-24win//libpi/include/rpi.h \
- /home/arjvik/Programming/c/cs140e-24win//libpi/include/rpi-inline-asm.h
+ /home/arjvik/Programming/c/cs140e-24win//libpi/include/rpi-inline-asm.h \
+ fat32-arjun.h emmc.h longjmp.h
 /home/arjvik/Programming/c/cs140e-24win//libpi/include/rpi.h:
 /home/arjvik/Programming/c/cs140e-24win//libpi/libc/demand.h:
 /home/arjvik/Programming/c/cs140e-24win//libpi/include/gpio.h:
@@ -30,3 +31,6 @@ syscall-handler.h:
 /home/arjvik/Programming/c/cs140e-24win//libpi/include/rpi-interrupts.h:
 /home/arjvik/Programming/c/cs140e-24win//libpi/include/rpi.h:
 /home/arjvik/Programming/c/cs140e-24win//libpi/include/rpi-inline-asm.h:
+fat32-arjun.h:
+emmc.h:
+longjmp.h:
