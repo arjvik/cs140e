@@ -2,8 +2,6 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-// #include <assert.h>
-#define assert(x) if (!(x)) { panic("Assertion failed: %s\n", #x); }
 #include "rpi.h"
 #include "emmc.h"
 

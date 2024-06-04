@@ -6,6 +6,8 @@ _start:
     // mov sp, #0x80000    // Example: set SP to 0x80000
 
     // Call main function
+    pop {r0}            // argc
+    mov r1, sp          // argv
     bl truemain
 
     // Call exit system call
