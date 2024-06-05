@@ -19,6 +19,19 @@ int next_fd = 3;
 struct fat32_filesystem fs;
 bool fs_inited = false;
 
+int sys_exit(int status) {
+    for (int i = 3; i < FD_MAX; i++)
+        fd_table[i].opened = false;
+    next_fd = 3;
+    if (jmp_set) {
+        longjmp(status);
+    } else {
+        if (status != 0)
+            printk("Exiting with nonzero status %d! (forcing clean exit anyway)\n", status);
+        clean_reboot();
+    }
+}
+
 int sys_open(const char *pathname, int flags, int mode) {
     if (!fs_inited) {
         fs = fat32init(1);
@@ -45,8 +58,10 @@ int sys_open(const char *pathname, int flags, int mode) {
         }
     }
 
-    if (!traverseToFile(&fs, (const char **) path, segments, fs.root_cluster, &fd_table[fd].file))
-        panic("open: file not found");
+    if (!traverseToFile(&fs, (const char **) path, segments, fs.root_cluster, &fd_table[fd].file)) {
+        printk("open: file not found\n");
+        sys_exit(1);
+    }
 
     fd_table[fd].offset = 0;
     fd_table[fd].opened = true;
@@ -89,19 +104,6 @@ int sys_read(int fd, void *buf, size_t count) {
     // return count;
 }
 
-int sys_exit(int status) {
-    for (int i = 3; i < FD_MAX; i++)
-        fd_table[i].opened = false;
-    next_fd = 3;
-    if (jmp_set) {
-        longjmp(status);
-    } else {
-        if (status != 0)
-            printk("Exiting with nonzero status %d! (forcing clean exit anyway)\n", status);
-        clean_reboot();
-    }
-}
-
 int sys_write(int fd, const void *buf, size_t count) {
     if (fd != 1 && fd != 2)
         panic("Read-only filesystem!\n");
@@ -132,19 +134,19 @@ int (*sys_handlers[])() = {
 int syscall_handler(regs_t *r) {
     unsigned *pc = (unsigned *)(r->regs[REGS_PC] - 4);
     unsigned immediate = *pc & ((1<<24)-1);
-    // assert(immediate == 0);
-    if (immediate != 0)
-        panic("instruction is %x at %x\n", *pc, pc);
+    assert(immediate == 0);
+    // if (immediate != 0)
+    //     panic("instruction is %x at %x\n", *pc, pc);
     unsigned sysno = r->regs[7];
 
     for (int i = 0; i < sizeof(handled_syscalls) / sizeof(handled_syscalls[0]) && sysno != handled_syscalls[i]; i++)
         if (i == sizeof(handled_syscalls) / sizeof(handled_syscalls[0]) - 1)
-            panic("Unhandled syscall %d\n", sysno);
+            panic("Unknown syscall %d\n", sysno);
 
     // printk("        (handling syscall %d, r0=%x r1=%x r2=%x)\n", sysno, r->regs[0], r->regs[1], r->regs[2]);
 
     if (!sys_handlers[sysno])
-        panic("Unknown syscall %d\n", sysno);
-
+        panic("Unhandled syscall %d\n", sysno);
+    
     return sys_handlers[sysno](r->regs[0], r->regs[1], r->regs[2], r->regs[3]);
 }

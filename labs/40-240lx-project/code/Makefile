@@ -13,3 +13,8 @@ LIBS += $(CS140E_2024_PATH)/lib/libgcc.a
 BOOTLOADER = pi-install
 EXCLUDE ?= grep -v simple_boot
 include $(CS140E_2024_PATH)/libpi/mk/Makefile.robust
+
+pi-shell:
+	make shell.bin >/dev/null 2>/dev/null
+	rlwrap -n -c -pGREEN make
+.PHONY: pi-shell

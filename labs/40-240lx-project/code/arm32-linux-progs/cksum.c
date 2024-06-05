@@ -64,8 +64,6 @@ void truemain(int argc, char *argv[]) {
         }
         assert(!(nread < 0), "read failed");
 
-        close(fd);
-
         intToStr(crc, buf);
         write(STDOUT_FD, buf, strlen(buf));
         write(STDOUT_FD, " ", 1);

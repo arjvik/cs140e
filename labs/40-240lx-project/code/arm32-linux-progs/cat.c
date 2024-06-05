@@ -26,7 +26,5 @@ void truemain(int argc, char *argv[]) {
         while ((nread = read(fd, buf, BUF_SIZE)) > 0)
             write(STDOUT_FD, buf, nread);
         assert(!(nread < 0), "read failed");
-
-        close(fd);
     }
 }
