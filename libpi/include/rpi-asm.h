@@ -21,7 +21,7 @@ name:                                       \
     bx lr
 
 // used to clear register before CP15 operation.
-#define CLR(reg) mov reg, #0 
+#define CLR(reg) mov reg, #0
 
 #define prefetch_flush(reg)     \
     mov reg, #0;                \
